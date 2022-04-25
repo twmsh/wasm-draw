@@ -3,6 +3,8 @@ mod utils;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
+use std::rc::Rc;
+
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
@@ -27,7 +29,7 @@ pub fn greet() {
 pub struct FyCanvasCtx {
     pub canvas_id: String,
     pub canvas: web_sys::HtmlCanvasElement,
-    pub canvas_context: web_sys::CanvasRenderingContext2d,
+    pub canvas_context: Rc<web_sys::CanvasRenderingContext2d>,
 }
 
 #[wasm_bindgen]
@@ -53,7 +55,7 @@ impl FyCanvasCtx {
         Ok(FyCanvasCtx {
             canvas_id: id.to_string(),
             canvas,
-            canvas_context,
+            canvas_context: Rc::new(canvas_context),
         })
     }
 }
@@ -88,7 +90,9 @@ impl FyCanvas {
 
         let file_reader = web_sys::FileReader::new()?;
         let img = web_sys::HtmlImageElement::new()?;
-
+        let canvas_ctx_cl = self.ctx.canvas_context.clone();
+        let width = self.width as f64;
+        let height = self.height as f64;
 
         let closure_image = Closure::wrap(Box::new(move |event: web_sys::Event| {
 
@@ -105,7 +109,8 @@ impl FyCanvas {
             document.body().unwrap()
                 .append_child(&ele_image).unwrap();
 
-
+            canvas_ctx_cl.draw_image_with_html_image_element_and_dw_and_dh(&ele_image,0.0,0.0,width,height)
+                .unwrap();
 
 
         }) as Box<dyn FnMut(_)>);
