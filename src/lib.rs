@@ -104,10 +104,10 @@ impl FyCanvas {
             log(&format!("--> closure_image, target2: {:?}", ele_image));
 
 
-            let document = get_document().unwrap();
-
-            document.body().unwrap()
-                .append_child(&ele_image).unwrap();
+            // let document = get_document().unwrap();
+            //
+            // document.body().unwrap()
+            //     .append_child(&ele_image).unwrap();
 
             canvas_ctx_cl.draw_image_with_html_image_element_and_dw_and_dh(&ele_image,0.0,0.0,width,height)
                 .unwrap();
