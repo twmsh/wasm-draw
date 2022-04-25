@@ -11,8 +11,11 @@ use wasm_bindgen::JsCast;
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 #[wasm_bindgen]
-extern {
+extern "C" {
     fn alert(s: &str);
+
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &str);
 }
 
 #[wasm_bindgen]
@@ -36,9 +39,7 @@ pub struct FyCanvas {
 
 impl FyCanvasCtx {
     pub fn new(id: &str, width: u32, height: u32) -> Result<FyCanvasCtx, JsValue> {
-        let document = web_sys::window()
-            .ok_or(JsError::new("windows not find"))?.document()
-            .ok_or(JsError::new("document not find"))?;
+        let document = get_document()?;
         let canvas = document.create_element("canvas")?.dyn_into::<web_sys::HtmlCanvasElement>()?;
 
         canvas.set_width(width);
@@ -71,13 +72,85 @@ impl FyCanvas {
     }
 
     pub fn mount_ui(&self) -> Result<(), JsValue> {
-        let document = web_sys::window()
-            .ok_or(JsError::new("windows not find"))?.document()
-            .ok_or(JsError::new("document not find"))?;
+        let document = get_document()?;
 
         document.body()
             .ok_or(JsError::new("body not find"))?
             .append_child(&self.ctx.canvas)?;
+        Ok(())
+    }
+
+    pub fn bind_file_input(&self, input_id: &str) -> Result<(),JsValue> {
+        let document = get_document()?;
+        let input = document.get_element_by_id(input_id)
+            .ok_or(JsError::new("body not find"))?
+            .dyn_into::<web_sys::HtmlInputElement>()?;
+
+        let file_reader = web_sys::FileReader::new()?;
+        let img = web_sys::HtmlImageElement::new()?;
+
+
+        let closure_image = Closure::wrap(Box::new(move |event: web_sys::Event| {
+
+            log(&format!("--> closure_image, event: {:?}",event));
+            log(&format!("--> closure_image, type: {:?}",event.type_()));
+            log(&format!("--> closure_image, target: {:?}",event.target()));
+
+            let ele_image = event.target().unwrap().dyn_into::<web_sys::HtmlImageElement>().unwrap();
+            log(&format!("--> closure_image, target2: {:?}", ele_image));
+
+
+            let document = get_document().unwrap();
+
+            document.body().unwrap()
+                .append_child(&ele_image).unwrap();
+
+
+
+
+        }) as Box<dyn FnMut(_)>);
+        img.set_onload(Some(closure_image.as_ref().unchecked_ref()));
+        closure_image.forget();
+
+
+        let closure_reader = Closure::wrap(Box::new(move |event: web_sys::Event| {
+
+            log(&format!("--> closure_reader, event: {:?}",event));
+            log(&format!("--> closure_reader, type: {:?}",event.type_()));
+            log(&format!("--> closure_reader, target: {:?}",event.target()));
+
+            let ele_reader = event.target().unwrap().dyn_into::<web_sys::FileReader>().unwrap();
+            log(&format!("--> closure_reader, target2: {:?}", ele_reader));
+
+            img.set_src(ele_reader.result().unwrap().as_string().unwrap().as_str());
+
+
+        }) as Box<dyn FnMut(_)>);
+        file_reader.set_onload(Some(closure_reader.as_ref().unchecked_ref()));
+        closure_reader.forget();
+
+
+
+        log(&format!("input: {:?}",input));
+
+        let closure_input = Closure::wrap(Box::new(move |event: web_sys::Event|{
+            log(&format!("--> closure_input, event: {:?}",event));
+            log(&format!("--> closure_input, type: {:?}",event.type_()));
+            log(&format!("--> closure_input, target: {:?}",event.target()));
+
+            let ele_input = event.target().unwrap().dyn_into::<web_sys::HtmlInputElement>().unwrap();
+            log(&format!("--> closure_input, target2: {:?}", ele_input));
+
+            let file = ele_input.files().unwrap().get(0).unwrap();
+            file_reader.read_as_data_url(&file).unwrap();
+
+
+        }) as Box<dyn FnMut(_)>);
+
+        input.add_event_listener_with_callback("change",closure_input.as_ref().unchecked_ref())?;
+
+        closure_input.forget();
+
         Ok(())
     }
 
@@ -90,7 +163,7 @@ impl FyCanvas {
 
 
 pub fn draw_rect() -> Result<(), JsValue> {
-    let document = web_sys::window().unwrap().document().unwrap();
+    let document = get_document()?;
     let canvas = document.create_element("canvas")?.dyn_into::<web_sys::HtmlCanvasElement>()?;
 
     canvas.set_width(400);
@@ -101,4 +174,12 @@ pub fn draw_rect() -> Result<(), JsValue> {
 
 
     Ok(())
+}
+
+pub fn get_document() -> Result<web_sys::Document,JsValue> {
+    let document = web_sys::window()
+        .ok_or(JsError::new("windows not find"))?.document()
+        .ok_or(JsError::new("document not find"))?;
+
+    Ok(document)
 }

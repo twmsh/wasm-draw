@@ -1,0 +1,1 @@
+https://stackoverflow.com/questions/67944469/rust-wasm-iterating-over-input-file
