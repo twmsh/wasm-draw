@@ -30,12 +30,56 @@ pub struct FyCanvasCtx {
     pub canvas_id: String,
     pub canvas: web_sys::HtmlCanvasElement,
     pub canvas_context: Rc<web_sys::CanvasRenderingContext2d>,
+
+    pub cache_canvas: web_sys::HtmlCanvasElement,
+    pub cache_context: Rc<web_sys::CanvasRenderingContext2d>,
 }
+
+pub struct ImgScaleRatio {
+    dx: f64,
+    dy: f64,
+    scale: f64,
+}
+
+impl Default for ImgScaleRatio {
+    fn default() -> Self {
+        ImgScaleRatio {
+            dx: 0.0,
+            dy: 0.0,
+            scale: 1.0,
+        }
+    }
+
+    fn calculate(c_width: u32, c_height: u32, img_width: u32, img_height: u32) -> ImgScaleRatio {
+        let c_width = c_width as f64;
+        let c_height = c_height as f64;
+        let img_width = img_width as f64;
+        let img_height = img_height as f64;
+
+        let c_ratio = c_width / c_height;
+        let i_ratio = img_width / img_height;
+        let scale = if i_ratio > c_ratio {
+            c_width / img_width
+        } else {
+            c_height / c_width
+        };
+
+        let dx = (c_width - img_width * scale) / 2 as f64;
+        let dy = (c_height - img_height * scale) / 2 as f64;
+        ImgScaleRatio {
+            dx: 0.0,
+            dy: 0.0,
+            scale,
+        }
+    }
+}
+
 
 #[wasm_bindgen]
 pub struct FyCanvas {
     pub width: u32,
     pub height: u32,
+    pub img_scale: ImgScaleRatio,
     ctx: FyCanvasCtx,
 }
 
@@ -52,10 +96,22 @@ impl FyCanvasCtx {
             .ok_or(JsError::new("document not find"))?
             .dyn_into::<web_sys::CanvasRenderingContext2d>()?;
 
+
+        let cache_canvas = document.create_element("canvas")?.dyn_into::<web_sys::HtmlCanvasElement>()?;
+        cache_canvas.set_width(width);
+        cache_canvas.set_height(height);
+
+        let cache_context = cache_canvas.get_context("2d")?
+            .ok_or(JsError::new("document not find"))?
+            .dyn_into::<web_sys::CanvasRenderingContext2d>()?;
+
+
         Ok(FyCanvasCtx {
             canvas_id: id.to_string(),
             canvas,
             canvas_context: Rc::new(canvas_context),
+            cache_canvas,
+            cache_context: Rc::new(cache_context),
         })
     }
 }
@@ -70,6 +126,7 @@ impl FyCanvas {
             width,
             height,
             ctx,
+            img_scale: Default::default(),
         })
     }
 
@@ -82,7 +139,7 @@ impl FyCanvas {
         Ok(())
     }
 
-    pub fn bind_file_input(&self, input_id: &str) -> Result<(),JsValue> {
+    pub fn bind_file_input(&self, input_id: &str) -> Result<(), JsValue> {
         let document = get_document()?;
         let input = document.get_element_by_id(input_id)
             .ok_or(JsError::new("body not find"))?
@@ -95,13 +152,15 @@ impl FyCanvas {
         let height = self.height as f64;
 
         let closure_image = Closure::wrap(Box::new(move |event: web_sys::Event| {
-
-            log(&format!("--> closure_image, event: {:?}",event));
-            log(&format!("--> closure_image, type: {:?}",event.type_()));
-            log(&format!("--> closure_image, target: {:?}",event.target()));
+            log(&format!("--> closure_image, event: {:?}", event));
+            log(&format!("--> closure_image, type: {:?}", event.type_()));
+            log(&format!("--> closure_image, target: {:?}", event.target()));
 
             let ele_image = event.target().unwrap().dyn_into::<web_sys::HtmlImageElement>().unwrap();
             log(&format!("--> closure_image, target2: {:?}", ele_image));
+
+            log(&format!("--> closure_image, img width: {:?}", ele_image.width()));
+            log(&format!("--> closure_image, img height: {:?}", ele_image.height()));
 
 
             // let document = get_document().unwrap();
@@ -109,50 +168,42 @@ impl FyCanvas {
             // document.body().unwrap()
             //     .append_child(&ele_image).unwrap();
 
-            canvas_ctx_cl.draw_image_with_html_image_element_and_dw_and_dh(&ele_image,0.0,0.0,width,height)
+            canvas_ctx_cl.draw_image_with_html_image_element_and_dw_and_dh(&ele_image, 0.0, 0.0, width, height)
                 .unwrap();
-
-
         }) as Box<dyn FnMut(_)>);
         img.set_onload(Some(closure_image.as_ref().unchecked_ref()));
         closure_image.forget();
 
 
         let closure_reader = Closure::wrap(Box::new(move |event: web_sys::Event| {
-
-            log(&format!("--> closure_reader, event: {:?}",event));
-            log(&format!("--> closure_reader, type: {:?}",event.type_()));
-            log(&format!("--> closure_reader, target: {:?}",event.target()));
+            log(&format!("--> closure_reader, event: {:?}", event));
+            log(&format!("--> closure_reader, type: {:?}", event.type_()));
+            log(&format!("--> closure_reader, target: {:?}", event.target()));
 
             let ele_reader = event.target().unwrap().dyn_into::<web_sys::FileReader>().unwrap();
             log(&format!("--> closure_reader, target2: {:?}", ele_reader));
 
             img.set_src(ele_reader.result().unwrap().as_string().unwrap().as_str());
-
-
         }) as Box<dyn FnMut(_)>);
         file_reader.set_onload(Some(closure_reader.as_ref().unchecked_ref()));
         closure_reader.forget();
 
 
+        log(&format!("input: {:?}", input));
 
-        log(&format!("input: {:?}",input));
-
-        let closure_input = Closure::wrap(Box::new(move |event: web_sys::Event|{
-            log(&format!("--> closure_input, event: {:?}",event));
-            log(&format!("--> closure_input, type: {:?}",event.type_()));
-            log(&format!("--> closure_input, target: {:?}",event.target()));
+        let closure_input = Closure::wrap(Box::new(move |event: web_sys::Event| {
+            log(&format!("--> closure_input, event: {:?}", event));
+            log(&format!("--> closure_input, type: {:?}", event.type_()));
+            log(&format!("--> closure_input, target: {:?}", event.target()));
 
             let ele_input = event.target().unwrap().dyn_into::<web_sys::HtmlInputElement>().unwrap();
             log(&format!("--> closure_input, target2: {:?}", ele_input));
 
             let file = ele_input.files().unwrap().get(0).unwrap();
             file_reader.read_as_data_url(&file).unwrap();
-
-
         }) as Box<dyn FnMut(_)>);
 
-        input.add_event_listener_with_callback("change",closure_input.as_ref().unchecked_ref())?;
+        input.add_event_listener_with_callback("change", closure_input.as_ref().unchecked_ref())?;
 
         closure_input.forget();
 
@@ -181,7 +232,7 @@ pub fn draw_rect() -> Result<(), JsValue> {
     Ok(())
 }
 
-pub fn get_document() -> Result<web_sys::Document,JsValue> {
+pub fn get_document() -> Result<web_sys::Document, JsValue> {
     let document = web_sys::window()
         .ok_or(JsError::new("windows not find"))?.document()
         .ok_or(JsError::new("document not find"))?;
