@@ -1,1 +1,22 @@
 https://stackoverflow.com/questions/67944469/rust-wasm-iterating-over-input-file
+
+
+trait FyComponent {
+    fn type_id() -> u32
+    fn z_index() -> u32
+    fn paint(context)
+    fn update(x,y)
+    fn is_move_on(x,y)-> bool
+    fn can_select(x,y) -> bool
+}
+
+FyCanvas {
+    canvas_id,
+    height,weight
+    canvas_ctx,cache_ctx,
+    components: Vec<dyn FyComponent>,
+    BgImg {
+        dx,dy,width,height,
+        origin_width,origin_height,
+    }
+}
