@@ -43,7 +43,7 @@ impl BgImgInfo {
         let scale = if i_ratio > c_ratio {
             c_width / img_width
         } else {
-            c_height / c_width
+            c_height / img_height
         };
 
         let dx = (c_width - img_width * scale) / 2 as f64;
@@ -71,7 +71,8 @@ impl FyRender {
     pub fn new(
         canvas_ctx: web_sys::CanvasRenderingContext2d,
         cache_canvas: web_sys::HtmlCanvasElement,
-        cache_ctx: web_sys::CanvasRenderingContext2d) -> Self {
+        cache_ctx: web_sys::CanvasRenderingContext2d,
+    ) -> Self {
         Self {
             canvas_ctx,
             cache_canvas,
@@ -110,12 +111,11 @@ impl FyRender {
 
         self.canvas_ctx.clear_rect(0.0, 0.0, width, height);
 
-        self.canvas_ctx.draw_image_with_html_canvas_element(&self.cache_canvas, 0.0, 0.0).unwrap();
+        self.canvas_ctx
+            .draw_image_with_html_canvas_element(&self.cache_canvas, 0.0, 0.0)
+            .unwrap();
     }
-
-
 }
-
 
 #[wasm_bindgen]
 pub struct FyCanvas {
@@ -157,7 +157,6 @@ impl FyCanvas {
             .dyn_into::<web_sys::CanvasRenderingContext2d>()?;
 
         let render = FyRender::new(canvas_context, cache_canvas, cache_context);
-
 
         Ok(FyCanvas {
             id: id.to_string(),
@@ -207,7 +206,6 @@ impl FyCanvas {
             render.update_bg(&ele_image, &bg_info);
 
             FyCanvas::repaint(render.clone());
-
         }) as Box<dyn FnMut(_)>);
         img.set_onload(Some(closure_image.as_ref().unchecked_ref()));
         closure_image.forget();
@@ -242,19 +240,17 @@ impl FyCanvas {
 
         Ok(())
     }
-
 }
 
 impl FyCanvas {
     fn repaint(render: Rc<FyRender>) {
-        let closure = Closure::wrap(Box::new(move||{
+        let closure = Closure::wrap(Box::new(move || {
             render.paint();
         }) as Box<dyn FnMut()>);
 
         request_animation_frame(&closure);
         closure.forget();
     }
-
 }
 
 //-----------------------------------------------------------------
