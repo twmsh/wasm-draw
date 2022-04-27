@@ -125,7 +125,7 @@ pub struct FyCanvas {
 #[wasm_bindgen]
 impl FyCanvas {
     pub fn new(id: &str) -> Result<FyCanvas, JsValue> {
-        let document = get_document()?;
+        let document = document();
 
         let canvas = document
             .get_element_by_id(id)
@@ -164,7 +164,7 @@ impl FyCanvas {
     }
 
     pub fn bind_bg_input(&self, input_id: &str) -> Result<(), JsValue> {
-        let document = get_document()?;
+        let document = document();
         let input = document
             .get_element_by_id(input_id)
             .ok_or(JsError::new("body not find"))?
@@ -172,12 +172,13 @@ impl FyCanvas {
 
         let file_reader = web_sys::FileReader::new()?;
         let img = web_sys::HtmlImageElement::new()?;
-        let cache_ctx = self.cache_ctx.clone();
+
         let width = self.width;
         let height = self.height;
 
         let bg = self.bg_img.clone();
         let render = self.render.clone();
+
 
         // img onload 回调
         let closure_image = Closure::wrap(Box::new(move |event: web_sys::Event| {
@@ -199,9 +200,9 @@ impl FyCanvas {
 
             bg.set(Some(bg_info));
             log("--> closure_image, draw bg on cache");
-            render.draw_bg(&ele_image, &bg_info);
-            render.repaint();
+            render.update_bg(&ele_image, &bg_info);
 
+            FyCanvas::repaint(&render);
 
         }) as Box<dyn FnMut(_)>);
         img.set_onload(Some(closure_image.as_ref().unchecked_ref()));
@@ -240,31 +241,39 @@ impl FyCanvas {
 
 }
 
-impl FyCanvas {}
+impl FyCanvas {
+    fn repaint(render: &Rc<FyRender>) {
 
-//-----------------------------------------------------------------
-//-----------------------------------------------------------------
+        let render_cl = render.clone();
 
-pub fn draw_rect() -> Result<(), JsValue> {
-    let document = get_document()?;
-    let canvas = document
-        .create_element("canvas")?
-        .dyn_into::<web_sys::HtmlCanvasElement>()?;
+        let closure = Closure::wrap(Box::new(move||{
+            render_cl.paint();
+        }) as Box<dyn FnMut()>);
+        request_animation_frame(&closure);
+    }
 
-    canvas.set_width(400);
-    canvas.set_height(400);
-    canvas.style().set_property("border", "solid")?;
-
-    document.body().unwrap().append_child(&canvas)?;
-
-    Ok(())
 }
 
-fn get_document() -> Result<web_sys::Document, JsValue> {
-    let document = web_sys::window()
-        .ok_or(JsError::new("windows not find"))?
-        .document()
-        .ok_or(JsError::new("document not find"))?;
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
 
-    Ok(document)
+//---------------------------------------------------------
+fn window() -> web_sys::Window {
+    web_sys::window().expect("no global `window` exists")
+}
+
+fn request_animation_frame(f: &Closure<dyn FnMut()>) {
+    window()
+        .request_animation_frame(f.as_ref().unchecked_ref())
+        .expect("should register `requestAnimationFrame` OK");
+}
+
+fn document() -> web_sys::Document {
+    window()
+        .document()
+        .expect("should have a document on window")
+}
+
+fn body() -> web_sys::HtmlElement {
+    document().body().expect("document should have a body")
 }
