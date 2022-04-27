@@ -179,7 +179,6 @@ impl FyCanvas {
         let bg = self.bg_img.clone();
         let render = self.render.clone();
 
-
         // img onload 回调
         let closure_image = Closure::wrap(Box::new(move |event: web_sys::Event| {
             log(&format!("--> closure_image, type: {:?}", event.type_()));
@@ -202,7 +201,7 @@ impl FyCanvas {
             log("--> closure_image, draw bg on cache");
             render.update_bg(&ele_image, &bg_info);
 
-            FyCanvas::repaint(&render);
+            FyCanvas::repaint(render.clone());
 
         }) as Box<dyn FnMut(_)>);
         img.set_onload(Some(closure_image.as_ref().unchecked_ref()));
@@ -242,14 +241,13 @@ impl FyCanvas {
 }
 
 impl FyCanvas {
-    fn repaint(render: &Rc<FyRender>) {
-
-        let render_cl = render.clone();
-
+    fn repaint(render: Rc<FyRender>) {
         let closure = Closure::wrap(Box::new(move||{
-            render_cl.paint();
+            render.paint();
         }) as Box<dyn FnMut()>);
+
         request_animation_frame(&closure);
+        closure.forget();
     }
 
 }
