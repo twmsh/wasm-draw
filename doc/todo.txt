@@ -20,3 +20,7 @@ FyCanvas {
         origin_width,origin_height,
     }
 }
+
+1) 优先级队列
+2) 控件trait object
+3) 更改内部属性

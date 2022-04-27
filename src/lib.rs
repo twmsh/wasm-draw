@@ -1,11 +1,10 @@
 mod utils;
 
+use std::cell::Cell;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
 use std::rc::Rc;
-
-
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
@@ -21,41 +20,19 @@ extern "C" {
     fn log(s: &str);
 }
 
-#[wasm_bindgen]
-pub fn greet() {
-    alert("Hello, wasm-draw!");
+#[derive(Debug, Copy, Clone)]
+pub struct BgImgInfo {
+    scale: f64,
+    dx: f64,
+    dy: f64,
+    width: f64,
+    height: f64,
+    origin_width: f64,
+    origin_height: f64,
 }
 
-
-pub struct FyCanvasCtx {
-    pub canvas_id: String,
-    pub canvas: web_sys::HtmlCanvasElement,
-    pub canvas_context: Rc<web_sys::CanvasRenderingContext2d>,
-
-    pub cache_canvas: web_sys::HtmlCanvasElement,
-    pub cache_context: Rc<web_sys::CanvasRenderingContext2d>,
-}
-
-#[wasm_bindgen]
-#[derive(Debug,Copy, Clone)]
-pub struct ImgScaleRatio {
-    pub dx: f64,
-    pub dy: f64,
-    pub scale: f64,
-}
-
-impl Default for ImgScaleRatio {
-    fn default() -> Self {
-        ImgScaleRatio {
-            dx: 0.0,
-            dy: 0.0,
-            scale: 1.0,
-        }
-    }
-}
-
-impl ImgScaleRatio {
-    fn calculate(c_width: u32, c_height: u32, img_width: u32, img_height: u32) -> ImgScaleRatio {
+impl BgImgInfo {
+    fn new(c_width: u32, c_height: u32, img_width: u32, img_height: u32) -> BgImgInfo {
         let c_width = c_width as f64;
         let c_height = c_height as f64;
         let img_width = img_width as f64;
@@ -71,166 +48,208 @@ impl ImgScaleRatio {
 
         let dx = (c_width - img_width * scale) / 2 as f64;
         let dy = (c_height - img_height * scale) / 2 as f64;
-        ImgScaleRatio {
+        BgImgInfo {
             dx,
             dy,
             scale,
+            width: img_width * scale,
+            height: img_height * scale,
+            origin_width: img_width,
+            origin_height: img_height,
         }
     }
+}
+
+struct FyRender {
+    canvas_ctx: web_sys::CanvasRenderingContext2d,
+
+    cache_canvas: web_sys::HtmlCanvasElement,
+    cache_ctx: web_sys::CanvasRenderingContext2d,
+}
+
+impl FyRender {
+    pub fn new(
+        canvas_ctx: web_sys::CanvasRenderingContext2d,
+        cache_canvas: web_sys::HtmlCanvasElement,
+        cache_ctx: web_sys::CanvasRenderingContext2d) -> Self {
+        Self {
+            canvas_ctx,
+            cache_canvas,
+            cache_ctx,
+        }
+    }
+
+    pub fn update_bg(&self, image: &web_sys::HtmlImageElement, bg_info: &BgImgInfo) {
+        let img_width = image.width();
+        let img_height = image.height();
+
+        let width = self.cache_canvas.width() as f64;
+        let height = self.cache_canvas.height() as f64;
+
+        self.cache_ctx.clear_rect(0.0, 0.0, width, height);
+        self.cache_ctx
+            .draw_image_with_html_image_element_and_sw_and_sh_and_dx_and_dy_and_dw_and_dh(
+                image,
+                0.0,
+                0.0,
+                img_width as f64,
+                img_height as f64,
+                bg_info.dx,
+                bg_info.dy,
+                bg_info.width,
+                bg_info.height,
+            )
+            .unwrap();
+    }
+
+    pub fn update_model(&self) {}
+
+    pub fn paint(&self) {
+        self.canvas_ctx.draw_image_with_html_canvas_element(&self.cache_canvas, 0.0, 0.0).unwrap();
+    }
+
+
 }
 
 
 #[wasm_bindgen]
 pub struct FyCanvas {
-    pub width: u32,
-    pub height: u32,
-    pub img_scale: ImgScaleRatio,
-    ctx: FyCanvasCtx,
+    id: String,
+    height: u32,
+    width: u32,
+
+    render: Rc<FyRender>,
+    bg_img: Rc<Cell<Option<BgImgInfo>>>,
 }
-
-impl FyCanvasCtx {
-    pub fn new(id: &str, width: u32, height: u32) -> Result<FyCanvasCtx, JsValue> {
-        let document = get_document()?;
-        let canvas = document.create_element("canvas")?.dyn_into::<web_sys::HtmlCanvasElement>()?;
-
-        canvas.set_width(width);
-        canvas.set_height(height);
-        canvas.style().set_property("border", "solid")?;
-
-        let canvas_context = canvas.get_context("2d")?
-            .ok_or(JsError::new("document not find"))?
-            .dyn_into::<web_sys::CanvasRenderingContext2d>()?;
-
-
-        let cache_canvas = document.create_element("canvas")?.dyn_into::<web_sys::HtmlCanvasElement>()?;
-        cache_canvas.set_width(width);
-        cache_canvas.set_height(height);
-
-        let cache_context = cache_canvas.get_context("2d")?
-            .ok_or(JsError::new("document not find"))?
-            .dyn_into::<web_sys::CanvasRenderingContext2d>()?;
-
-
-        Ok(FyCanvasCtx {
-            canvas_id: id.to_string(),
-            canvas,
-            canvas_context: Rc::new(canvas_context),
-            cache_canvas,
-            cache_context: Rc::new(cache_context),
-        })
-    }
-}
-
 
 #[wasm_bindgen]
 impl FyCanvas {
-    pub fn new(id: &str, width: u32, height: u32) -> Result<FyCanvas, JsValue> {
-        let ctx = FyCanvasCtx::new(id, width, height)?;
+    pub fn new(id: &str) -> Result<FyCanvas, JsValue> {
+        let document = get_document()?;
+
+        let canvas = document
+            .get_element_by_id(id)
+            .ok_or(JsError::new("body not find"))?
+            .dyn_into::<web_sys::HtmlCanvasElement>()?;
+
+        let canvas_height = canvas.height();
+        let canvas_width = canvas.width();
+
+        let canvas_context = canvas
+            .get_context("2d")?
+            .ok_or(JsError::new("document not find"))?
+            .dyn_into::<web_sys::CanvasRenderingContext2d>()?;
+
+        let cache_canvas = document
+            .create_element("canvas")?
+            .dyn_into::<web_sys::HtmlCanvasElement>()?;
+        cache_canvas.set_width(canvas_height);
+        cache_canvas.set_height(canvas_width);
+
+        let cache_context = cache_canvas
+            .get_context("2d")?
+            .ok_or(JsError::new("document not find"))?
+            .dyn_into::<web_sys::CanvasRenderingContext2d>()?;
+
+        let render = FyRender::new(canvas_context, cache_canvas, cache_context);
+
 
         Ok(FyCanvas {
-            width,
-            height,
-            ctx,
-            img_scale: Default::default(),
+            id: id.to_string(),
+            height: canvas_height,
+            width: canvas_width,
+            render: Rc::new(render),
+            bg_img: Rc::new(Cell::new(None)),
         })
     }
 
-    pub fn mount_ui(&self) -> Result<(), JsValue> {
+    pub fn bind_bg_input(&self, input_id: &str) -> Result<(), JsValue> {
         let document = get_document()?;
-
-        document.body()
-            .ok_or(JsError::new("body not find"))?
-            .append_child(&self.ctx.canvas)?;
-        Ok(())
-    }
-
-    pub fn bind_file_input(&self, input_id: &str) -> Result<(), JsValue> {
-        let document = get_document()?;
-        let input = document.get_element_by_id(input_id)
+        let input = document
+            .get_element_by_id(input_id)
             .ok_or(JsError::new("body not find"))?
             .dyn_into::<web_sys::HtmlInputElement>()?;
 
         let file_reader = web_sys::FileReader::new()?;
         let img = web_sys::HtmlImageElement::new()?;
-        let canvas_ctx = self.ctx.canvas_context.clone();
-        let cache_ctx = self.ctx.cache_context.clone();
-        let width = self.width ;
-        let height = self.height ;
+        let cache_ctx = self.cache_ctx.clone();
+        let width = self.width;
+        let height = self.height;
 
+        let bg = self.bg_img.clone();
+        let render = self.render.clone();
+
+        // img onload 回调
         let closure_image = Closure::wrap(Box::new(move |event: web_sys::Event| {
-            log(&format!("--> closure_image, event: {:?}", event));
             log(&format!("--> closure_image, type: {:?}", event.type_()));
-            log(&format!("--> closure_image, target: {:?}", event.target()));
-
-            let ele_image = event.target().unwrap().dyn_into::<web_sys::HtmlImageElement>().unwrap();
-            log(&format!("--> closure_image, target2: {:?}", ele_image));
-
+            let ele_image = event
+                .target()
+                .unwrap()
+                .dyn_into::<web_sys::HtmlImageElement>()
+                .unwrap();
             let img_width = ele_image.width();
             let img_height = ele_image.height();
+            log(&format!(
+                "--> closure_image, img, width: {:?}, height: {:?}",
+                img_width, img_height
+            ));
 
-            log(&format!("--> closure_image, img width: {:?}", img_width));
-            log(&format!("--> closure_image, img height: {:?}", img_height));
+            let bg_info = BgImgInfo::new(width, height, img_width, img_height);
+            log(&format!("--> closure_image, bg_info: {:?}", bg_info));
 
-            let ratio = ImgScaleRatio::calculate(width,height,img_width,img_height);
+            bg.set(Some(bg_info));
+            log("--> closure_image, draw bg on cache");
+            render.draw_bg(&ele_image, &bg_info);
+            render.repaint();
 
-            log(&format!("--> closure_image, ratio: {:?}", ratio));
 
-
-            canvas_ctx. draw_image_with_html_image_element_and_sw_and_sh_and_dx_and_dy_and_dw_and_dh(&ele_image,
-                            0.0,0.0, img_width as f64, img_height as f64,
-                           ratio.dx, ratio.dy, img_width as f64 * ratio.scale, img_height as f64 * ratio.scale)
-                .unwrap();
         }) as Box<dyn FnMut(_)>);
         img.set_onload(Some(closure_image.as_ref().unchecked_ref()));
         closure_image.forget();
 
-
+        // filereader onload 回调
         let closure_reader = Closure::wrap(Box::new(move |event: web_sys::Event| {
-            log(&format!("--> closure_reader, event: {:?}", event));
             log(&format!("--> closure_reader, type: {:?}", event.type_()));
-            log(&format!("--> closure_reader, target: {:?}", event.target()));
-
-            let ele_reader = event.target().unwrap().dyn_into::<web_sys::FileReader>().unwrap();
-            log(&format!("--> closure_reader, target2: {:?}", ele_reader));
-
+            let ele_reader = event
+                .target()
+                .unwrap()
+                .dyn_into::<web_sys::FileReader>()
+                .unwrap();
             img.set_src(ele_reader.result().unwrap().as_string().unwrap().as_str());
         }) as Box<dyn FnMut(_)>);
         file_reader.set_onload(Some(closure_reader.as_ref().unchecked_ref()));
         closure_reader.forget();
 
-
-        log(&format!("input: {:?}", input));
-
+        // input change 回调
         let closure_input = Closure::wrap(Box::new(move |event: web_sys::Event| {
-            log(&format!("--> closure_input, event: {:?}", event));
             log(&format!("--> closure_input, type: {:?}", event.type_()));
-            log(&format!("--> closure_input, target: {:?}", event.target()));
-
-            let ele_input = event.target().unwrap().dyn_into::<web_sys::HtmlInputElement>().unwrap();
-            log(&format!("--> closure_input, target2: {:?}", ele_input));
-
+            let ele_input = event
+                .target()
+                .unwrap()
+                .dyn_into::<web_sys::HtmlInputElement>()
+                .unwrap();
             let file = ele_input.files().unwrap().get(0).unwrap();
             file_reader.read_as_data_url(&file).unwrap();
         }) as Box<dyn FnMut(_)>);
 
         input.add_event_listener_with_callback("change", closure_input.as_ref().unchecked_ref())?;
-
         closure_input.forget();
 
         Ok(())
     }
 
-
-    pub fn paint(&self) -> Result<(), JsValue> {
-        self.ctx.canvas_context.stroke_rect(10.0, 20.0, 100.0, 100.0);
-        Ok(())
-    }
 }
 
+impl FyCanvas {}
+
+//-----------------------------------------------------------------
+//-----------------------------------------------------------------
 
 pub fn draw_rect() -> Result<(), JsValue> {
     let document = get_document()?;
-    let canvas = document.create_element("canvas")?.dyn_into::<web_sys::HtmlCanvasElement>()?;
+    let canvas = document
+        .create_element("canvas")?
+        .dyn_into::<web_sys::HtmlCanvasElement>()?;
 
     canvas.set_width(400);
     canvas.set_height(400);
@@ -238,13 +257,13 @@ pub fn draw_rect() -> Result<(), JsValue> {
 
     document.body().unwrap().append_child(&canvas)?;
 
-
     Ok(())
 }
 
-pub fn get_document() -> Result<web_sys::Document, JsValue> {
+fn get_document() -> Result<web_sys::Document, JsValue> {
     let document = web_sys::window()
-        .ok_or(JsError::new("windows not find"))?.document()
+        .ok_or(JsError::new("windows not find"))?
+        .document()
         .ok_or(JsError::new("document not find"))?;
 
     Ok(document)
