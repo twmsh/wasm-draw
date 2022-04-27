@@ -105,6 +105,11 @@ impl FyRender {
     pub fn update_model(&self) {}
 
     pub fn paint(&self) {
+        let width = self.cache_canvas.width() as f64;
+        let height = self.cache_canvas.height() as f64;
+
+        self.canvas_ctx.clear_rect(0.0, 0.0, width, height);
+
         self.canvas_ctx.draw_image_with_html_canvas_element(&self.cache_canvas, 0.0, 0.0).unwrap();
     }
 
