@@ -1,4 +1,5 @@
 mod utils;
+mod component;
 
 use std::cell::Cell;
 use wasm_bindgen::prelude::*;
