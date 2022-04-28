@@ -6,12 +6,16 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
 use std::rc::Rc;
+use component::*;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
 #[cfg(feature = "wee_alloc")]
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+
+type  ComponentVec = Vec<Box<dyn Component>>;
+
 
 #[wasm_bindgen]
 extern "C" {
@@ -106,7 +110,7 @@ impl FyRender {
 
     pub fn update_model(&self) {}
 
-    pub fn paint(&self) {
+    pub fn paint(&self, childs: Rc<ComponentVec>) {
         let width = self.cache_canvas.width() as f64;
         let height = self.cache_canvas.height() as f64;
 
@@ -126,6 +130,7 @@ pub struct FyCanvas {
 
     render: Rc<FyRender>,
     bg_img: Rc<Cell<Option<BgImgInfo>>>,
+    childs: Rc<ComponentVec>,
 }
 
 #[wasm_bindgen]
@@ -165,6 +170,7 @@ impl FyCanvas {
             width: canvas_width,
             render: Rc::new(render),
             bg_img: Rc::new(Cell::new(None)),
+            childs: Rc::new(vec![])
         })
     }
 
@@ -172,7 +178,7 @@ impl FyCanvas {
         let document = document();
         let input = document
             .get_element_by_id(input_id)
-            .ok_or(JsError::new("body not find"))?
+            .ok_or(JsError::new("input not find"))?
             .dyn_into::<web_sys::HtmlInputElement>()?;
 
         let file_reader = web_sys::FileReader::new()?;
@@ -183,6 +189,7 @@ impl FyCanvas {
 
         let bg = self.bg_img.clone();
         let render = self.render.clone();
+        let childs = self.childs.clone();
 
         // img onload 回调
         let closure_image = Closure::wrap(Box::new(move |event: web_sys::Event| {
@@ -206,7 +213,7 @@ impl FyCanvas {
             log("--> closure_image, draw bg on cache");
             render.update_bg(&ele_image, &bg_info);
 
-            FyCanvas::repaint(render.clone());
+            FyCanvas::repaint(render.clone(),childs.clone());
         }) as Box<dyn FnMut(_)>);
         img.set_onload(Some(closure_image.as_ref().unchecked_ref()));
         closure_image.forget();
@@ -244,9 +251,10 @@ impl FyCanvas {
 }
 
 impl FyCanvas {
-    fn repaint(render: Rc<FyRender>) {
+    fn repaint(render: Rc<FyRender>, childs: Rc<ComponentVec>) {
+        let childs_cl = childs.clone();
         let closure = Closure::wrap(Box::new(move || {
-            render.paint();
+            render.paint(childs_cl);
         }) as Box<dyn FnMut()>);
 
         request_animation_frame(&closure);
