@@ -253,8 +253,10 @@ impl FyCanvas {
 impl FyCanvas {
     fn repaint(render: Rc<FyRender>, childs: Rc<ComponentVec>) {
         let childs_cl = childs.clone();
+        let render_cl = render.clone();
         let closure = Closure::wrap(Box::new(move || {
-            render.paint(childs_cl);
+            let childs_cl_cl = childs_cl.clone();
+            render_cl.paint(childs_cl_cl);
         }) as Box<dyn FnMut()>);
 
         request_animation_frame(&closure);
