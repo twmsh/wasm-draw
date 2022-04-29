@@ -8,7 +8,6 @@ use wasm_bindgen::JsCast;
 use component::*;
 use std::rc::Rc;
 
-
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
 #[cfg(feature = "wee_alloc")]
@@ -123,7 +122,6 @@ impl FyRender {
         for component in childs.borrow().iter() {
             component.paint(&self.canvas_ctx);
         }
-
     }
 }
 
@@ -169,9 +167,13 @@ impl FyCanvas {
 
         let render = FyRender::new(canvas_context, cache_canvas, cache_context);
 
-        let  childs = Rc::new(RefCell::new(vec![]));
-        childs.borrow_mut().push(test_create_rect_component(100,100));
-        childs.borrow_mut().push(test_create_rect_component(300,300));
+        let childs = Rc::new(RefCell::new(vec![]));
+        childs
+            .borrow_mut()
+            .push(test_create_rect_component(100, 100));
+        childs
+            .borrow_mut()
+            .push(test_create_rect_component(300, 300));
 
         Ok(FyCanvas {
             id: id.to_string(),
@@ -260,11 +262,8 @@ impl FyCanvas {
 
 impl FyCanvas {
     fn repaint(render: Rc<FyRender>, childs: Rc<RefCell<ComponentVec>>) {
-        let childs_cl = childs.clone();
-        let render_cl = render.clone();
         let closure = Closure::wrap(Box::new(move || {
-            let childs_cl_cl = childs_cl.clone();
-            render_cl.paint(childs_cl_cl);
+            render.paint(childs.clone());
         }) as Box<dyn FnMut()>);
 
         request_animation_frame(&closure);
@@ -275,14 +274,13 @@ impl FyCanvas {
 //-----------------------------------------------------------------
 //-----------------------------------------------------------------
 
-fn test_create_rect_component(x:i32,y:i32) -> Box<dyn Component>{
-
+fn test_create_rect_component(x: i32, y: i32) -> Box<dyn Component> {
     let width = 200;
     let height = 100;
     let line_width = 4;
     let control_width = 8;
 
-   let comp =  RectComponent {
+    let comp = RectComponent {
         lt_point: Point { x, y },
         width,
         height,
@@ -290,21 +288,22 @@ fn test_create_rect_component(x:i32,y:i32) -> Box<dyn Component>{
         line_color: "blue".to_string(),
         focus_color: "red".to_string(),
         lt_control: ControlPoint {
-            point: Point {x,y},
-            width: control_width
+            point: Point { x, y },
+            width: control_width,
         },
         rb_control: ControlPoint {
-            point: Point { x: x+width as i32,y: y+height as i32},
-            width: control_width
+            point: Point {
+                x: x + width as i32,
+                y: y + height as i32,
+            },
+            width: control_width,
         },
         is_move_on: false,
         selected: false,
-       title: "抓拍区域".to_string()
-   };
+        title: "抓拍区域".to_string(),
+    };
     Box::new(comp)
-
 }
-
 
 //---------------------------------------------------------
 fn window() -> web_sys::Window {
