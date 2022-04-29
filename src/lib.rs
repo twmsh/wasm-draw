@@ -170,7 +170,8 @@ impl FyCanvas {
         let render = FyRender::new(canvas_context, cache_canvas, cache_context);
 
         let  childs = Rc::new(RefCell::new(vec![]));
-        childs.borrow_mut().push(test_create_rect_component());
+        childs.borrow_mut().push(test_create_rect_component(100,100));
+        childs.borrow_mut().push(test_create_rect_component(300,300));
 
         Ok(FyCanvas {
             id: id.to_string(),
@@ -274,9 +275,8 @@ impl FyCanvas {
 //-----------------------------------------------------------------
 //-----------------------------------------------------------------
 
-fn test_create_rect_component() -> Box<dyn Component>{
-    let x = 100;
-    let y = 100;
+fn test_create_rect_component(x:i32,y:i32) -> Box<dyn Component>{
+
     let width = 200;
     let height = 100;
     let line_width = 4;
@@ -298,8 +298,9 @@ fn test_create_rect_component() -> Box<dyn Component>{
             width: control_width
         },
         is_move_on: false,
-        selected: false
-    };
+        selected: false,
+       title: "抓拍区域".to_string()
+   };
     Box::new(comp)
 
 }
