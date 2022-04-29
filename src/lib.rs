@@ -1,12 +1,13 @@
-mod utils;
 mod component;
+mod utils;
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
-use std::rc::Rc;
 use component::*;
+use std::rc::Rc;
+
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
@@ -14,8 +15,7 @@ use component::*;
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
-type  ComponentVec = Vec<Box<dyn Component>>;
-
+type ComponentVec = Vec<Box<dyn Component>>;
 
 #[wasm_bindgen]
 extern "C" {
@@ -110,7 +110,7 @@ impl FyRender {
 
     pub fn update_model(&self) {}
 
-    pub fn paint(&self, childs: Rc<ComponentVec>) {
+    pub fn paint(&self, childs: Rc<RefCell<ComponentVec>>) {
         let width = self.cache_canvas.width() as f64;
         let height = self.cache_canvas.height() as f64;
 
@@ -119,6 +119,11 @@ impl FyRender {
         self.canvas_ctx
             .draw_image_with_html_canvas_element(&self.cache_canvas, 0.0, 0.0)
             .unwrap();
+
+        for component in childs.borrow().iter() {
+            component.paint(&self.canvas_ctx);
+        }
+
     }
 }
 
@@ -130,7 +135,7 @@ pub struct FyCanvas {
 
     render: Rc<FyRender>,
     bg_img: Rc<Cell<Option<BgImgInfo>>>,
-    childs: Rc<ComponentVec>,
+    childs: Rc<RefCell<ComponentVec>>,
 }
 
 #[wasm_bindgen]
@@ -164,13 +169,16 @@ impl FyCanvas {
 
         let render = FyRender::new(canvas_context, cache_canvas, cache_context);
 
+        let  childs = Rc::new(RefCell::new(vec![]));
+        childs.borrow_mut().push(test_create_rect_component());
+
         Ok(FyCanvas {
             id: id.to_string(),
             height: canvas_height,
             width: canvas_width,
             render: Rc::new(render),
             bg_img: Rc::new(Cell::new(None)),
-            childs: Rc::new(vec![])
+            childs,
         })
     }
 
@@ -212,8 +220,7 @@ impl FyCanvas {
             bg.set(Some(bg_info));
             log("--> closure_image, draw bg on cache");
             render.update_bg(&ele_image, &bg_info);
-
-            FyCanvas::repaint(render.clone(),childs.clone());
+            FyCanvas::repaint(render.clone(), childs.clone());
         }) as Box<dyn FnMut(_)>);
         img.set_onload(Some(closure_image.as_ref().unchecked_ref()));
         closure_image.forget();
@@ -251,7 +258,7 @@ impl FyCanvas {
 }
 
 impl FyCanvas {
-    fn repaint(render: Rc<FyRender>, childs: Rc<ComponentVec>) {
+    fn repaint(render: Rc<FyRender>, childs: Rc<RefCell<ComponentVec>>) {
         let childs_cl = childs.clone();
         let render_cl = render.clone();
         let closure = Closure::wrap(Box::new(move || {
@@ -266,6 +273,37 @@ impl FyCanvas {
 
 //-----------------------------------------------------------------
 //-----------------------------------------------------------------
+
+fn test_create_rect_component() -> Box<dyn Component>{
+    let x = 100;
+    let y = 100;
+    let width = 200;
+    let height = 100;
+    let line_width = 4;
+    let control_width = 8;
+
+   let comp =  RectComponent {
+        lt_point: Point { x, y },
+        width,
+        height,
+        line_width,
+        line_color: "blue".to_string(),
+        focus_color: "red".to_string(),
+        lt_control: ControlPoint {
+            point: Point {x,y},
+            width: control_width
+        },
+        rb_control: ControlPoint {
+            point: Point { x: x+width as i32,y: y+height as i32},
+            width: control_width
+        },
+        is_move_on: false,
+        selected: false
+    };
+    Box::new(comp)
+
+}
+
 
 //---------------------------------------------------------
 fn window() -> web_sys::Window {
