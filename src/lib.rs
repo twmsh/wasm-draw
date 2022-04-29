@@ -173,7 +173,7 @@ impl FyCanvas {
             .push(test_create_rect_component(100, 100));
         childs
             .borrow_mut()
-            .push(test_create_rect_component(300, 300));
+            .push(test_create_rect_component(150, 300));
 
         Ok(FyCanvas {
             id: id.to_string(),
