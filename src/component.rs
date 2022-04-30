@@ -1,32 +1,60 @@
 use wasm_bindgen::JsValue;
 use web_sys::CanvasRenderingContext2d;
 
+
 pub trait Component {
+    fn id(&self) -> u32;
     fn type_id(&self) -> u32;
+    fn style(&self) -> ComponentStyle;
+
     fn update_mouse(&self, x: i32, y: i32);
 
     fn paint(&self, context: &web_sys::CanvasRenderingContext2d);
     fn can_move_on(&self, x: i32, y: i32) -> bool;
     fn can_select(&self, x: i32, y: i32) -> bool;
+    fn is_select(&self) -> bool;
 }
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Clone)]
+pub struct ComponentStyle {
+    pub font: String,
+
+    pub line_width: u32,
+    pub line_color: String,
+    pub line_focus_color: String,
+
+    pub control_line_width: u32,
+    pub control_width: u32,
+    pub control_line_color: String,
+    pub control_fill_color: String,
+
+}
+
+#[derive(Debug, Copy, Clone)]
 pub struct Point {
     pub x: i32,
     pub y: i32,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct ControlPoint {
     pub point: Point,
     pub width: u32,
 }
 
 impl ControlPoint {
-    fn paint(&self, context: &CanvasRenderingContext2d) {
+    fn paint(&self, context: &CanvasRenderingContext2d, style: &ComponentStyle) {
         let left = self.point.x - (self.width / 2) as i32;
         let top = self.point.y - (self.width / 2) as i32;
 
+        context.set_line_width(style.control_line_width as f64);
+        context.set_fill_style(&JsValue::from_str(style.control_fill_color.as_str()));
+        context.fill_rect(left as f64,
+                          top as f64,
+                          self.width as f64,
+                          self.width as f64, );
+
+        context.set_stroke_style(&JsValue::from_str(style.control_line_color.as_str()));
         // 画矩形框
         context.stroke_rect(
             left as f64,
@@ -38,20 +66,20 @@ impl ControlPoint {
 }
 
 pub struct RectComponent {
+    pub id: u32,
+    pub style: ComponentStyle,
+
     pub lt_point: Point,
     pub width: u32,
     pub height: u32,
 
-    pub line_width: u32,
-    pub line_color: String,
-    pub focus_color: String,
+    pub title: String,
 
     pub start_control: ControlPoint,
     pub end_control: ControlPoint,
 
-    pub is_move_on: bool,
     pub selected: bool,
-    pub title: String,
+
 }
 
 impl RectComponent {
@@ -69,35 +97,46 @@ impl RectComponent {
     pub fn title_position(&self) -> (f64, f64) {
         let (x, y) = self.lt_point();
 
-        (x + (self.width  / 2) as f64, y)
+        (x + (self.width / 2) as f64, y)
     }
 }
 
 impl Component for RectComponent {
+    fn id(&self) -> u32 {
+        self.id
+    }
+
     fn type_id(&self) -> u32 {
-        1
+        4
+    }
+
+    fn style(&self) -> ComponentStyle {
+        self.style.clone()
     }
 
     fn update_mouse(&self, x: i32, y: i32) {}
 
     fn paint(&self, context: &CanvasRenderingContext2d) {
-        context.set_stroke_style(&JsValue::from_str(self.line_color.as_str()));
-        context.set_line_width(self.line_width as f64);
 
-        let (lt_x, lt_y) = self.lt_point();
+        // 设置线颜色和宽带
+        context.set_stroke_style(&JsValue::from_str(self.style.line_color.as_str()));
+        context.set_line_width(self.style.line_width as f64);
+
         // 画矩形框
+        let (lt_x, lt_y) = self.lt_point();
         context.stroke_rect(lt_x, lt_y, self.width as f64, self.height as f64);
 
         // 画控制点
-        self.start_control.paint(context);
-        self.end_control.paint(context);
+        self.start_control.paint(context, &self.style);
+        self.end_control.paint(context, &self.style);
 
-        // 画 title
-        context.set_fill_style(&JsValue::from_str(self.line_color.as_str()));
+        // 设置字体相关信息
+        context.set_fill_style(&JsValue::from_str(self.style.line_color.as_str()));
         context.set_text_baseline("middle");
         context.set_text_align("cetner");
-        context.set_font("16px serif");
+        context.set_font(self.style.font.as_str());
 
+        // 画 title
         let (title_x, title_y) = self.title_position();
         let title_offset = 16.00;
         context.fill_text(&self.title, title_x - title_offset, title_y + title_offset).unwrap();
@@ -110,63 +149,78 @@ impl Component for RectComponent {
     fn can_select(&self, x: i32, y: i32) -> bool {
         true
     }
+
+    fn is_select(&self) -> bool {
+        self.selected
+    }
 }
 
 //-----------------------------------------------------
 pub struct LineComponent {
-    pub start_point: ControlPoint,
-    pub end_point: ControlPoint,
+    pub id: u32,
+    pub style: ComponentStyle,
 
-    pub line_width: u32,
-    pub line_color: String,
-    pub focus_color: String,
-
-    pub is_move_on: bool,
-    pub selected: bool,
     pub title: String,
+
+    pub start_control: ControlPoint,
+    pub end_control: ControlPoint,
+
+    pub selected: bool,
+
 }
 
 impl LineComponent {
     pub fn title_position(&self) -> (f64, f64) {
-        let x = self.start_point.point.x + (self.end_point.point.x - self.start_point.point.x) / 2;
-        let y = self.start_point.point.y + (self.end_point.point.y - self.start_point.point.y) / 2;
+        let x = self.start_control.point.x + (self.end_control.point.x - self.start_control.point.x) / 2;
+        let y = self.start_control.point.y + (self.end_control.point.y - self.start_control.point.y) / 2;
         (x as f64, y as f64)
     }
 }
 
 impl Component for LineComponent {
+    fn id(&self) -> u32 {
+        self.id
+    }
+
     fn type_id(&self) -> u32 {
-        2
+        1
+    }
+
+    fn style(&self) -> ComponentStyle {
+        self.style.clone()
     }
 
     fn update_mouse(&self, x: i32, y: i32) {}
 
     fn paint(&self, context: &CanvasRenderingContext2d) {
-        context.set_stroke_style(&JsValue::from_str(self.line_color.as_str()));
-        context.set_line_width(self.line_width as f64);
+
+        // 设置线颜色和宽带
+        context.set_stroke_style(&JsValue::from_str(self.style.line_color.as_str()));
+        context.set_line_width(self.style.line_width as f64);
 
         // 画直线
         context.begin_path();
         context.move_to(
-            self.start_point.point.x as f64,
-            self.start_point.point.y as f64,
+            self.start_control.point.x as f64,
+            self.start_control.point.y as f64,
         );
-        context.line_to(self.end_point.point.x as f64, self.end_point.point.y as f64);
+        context.line_to(self.end_control.point.x as f64, self.end_control.point.y as f64);
         context.stroke();
 
         // 画控制点
-        self.start_point.paint(context);
-        self.end_point.paint(context);
+        self.start_control.paint(context, &self.style);
+        self.end_control.paint(context, &self.style);
 
-        // 画 title
-        context.set_fill_style(&JsValue::from_str(self.line_color.as_str()));
+        // 设置字体相关信息
+        context.set_fill_style(&JsValue::from_str(self.style.line_color.as_str()));
         context.set_text_baseline("middle");
         context.set_text_align("cetner");
-        context.set_font("16px serif");
+        context.set_font(self.style.font.as_str());
 
+        // 画 title
         let (title_x, title_y) = self.title_position();
         let title_offset = 16.00;
-        context.fill_text(&self.title, title_x - title_offset, title_y).unwrap();
+        context.fill_text(&self.title, title_x - title_offset, title_y + title_offset).unwrap();
     }
 
     fn can_move_on(&self, x: i32, y: i32) -> bool {
@@ -175,5 +229,95 @@ impl Component for LineComponent {
 
     fn can_select(&self, x: i32, y: i32) -> bool {
         true
+    }
+
+    fn is_select(&self) -> bool {
+        self.selected
+    }
+}
+
+//-----------------------------------------------------
+pub struct CircleComponent {
+    pub id: u32,
+    pub style: ComponentStyle,
+
+    pub title: String,
+
+    pub start_control: ControlPoint,
+    pub end_control: ControlPoint,
+
+    pub radius: u32,
+
+    pub selected: bool,
+
+}
+
+impl CircleComponent {
+    pub fn title_position(&self) -> (f64, f64) {
+        let x = self.start_control.point.x + (self.end_control.point.x - self.start_control.point.x) / 2;
+        let y = self.start_control.point.y + (self.end_control.point.y - self.start_control.point.y) / 2;
+        (x as f64, y as f64)
+    }
+}
+
+impl Component for CircleComponent {
+    fn id(&self) -> u32 {
+        self.id
+    }
+
+    fn type_id(&self) -> u32 {
+        2
+    }
+
+    fn style(&self) -> ComponentStyle {
+        self.style.clone()
+    }
+
+    fn update_mouse(&self, x: i32, y: i32) {}
+
+    fn paint(&self, context: &CanvasRenderingContext2d) {
+
+        // 设置线颜色和宽带
+        context.set_stroke_style(&JsValue::from_str(self.style.line_color.as_str()));
+        context.set_line_width(self.style.line_width as f64);
+
+        // 画直线
+        context.begin_path();
+
+        context.arc(
+            self.start_control.point.x as f64,
+            self.start_control.point.y as f64,
+            self.radius as f64,
+            0.0,
+            2 as f64 * std::f64::consts::PI,
+        ).unwrap();
+        context.stroke();
+
+        // 画控制点
+        self.start_control.paint(context, &self.style);
+        self.end_control.paint(context, &self.style);
+
+        // 设置字体相关信息
+        context.set_fill_style(&JsValue::from_str(self.style.line_color.as_str()));
+        context.set_text_baseline("middle");
+        context.set_text_align("cetner");
+        context.set_font(self.style.font.as_str());
+
+        // 画 title
+        let (title_x, title_y) = self.title_position();
+        let title_offset = 16.00;
+        context.fill_text(&self.title, title_x - title_offset, title_y + title_offset).unwrap();
+    }
+
+    fn can_move_on(&self, x: i32, y: i32) -> bool {
+        true
+    }
+
+    fn can_select(&self, x: i32, y: i32) -> bool {
+        true
+    }
+
+    fn is_select(&self) -> bool {
+        todo!()
     }
 }

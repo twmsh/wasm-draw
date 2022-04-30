@@ -170,21 +170,31 @@ impl FyCanvas {
         let childs = Rc::new(RefCell::new(vec![]));
 
         // 加测试数据
+
         childs
             .borrow_mut()
-            .push(test_create_rect_component(100, 100));
+            .push(test_create_rect_component(1,100, 100));
         childs
             .borrow_mut()
-            .push(test_create_rect_component(150, 300));
+            .push(test_create_rect_component(2,150, 300));
 
 
         childs
             .borrow_mut()
-            .push(test_create_line_component(150, 300, 300,200));
+            .push(test_create_line_component(3,150, 300, 300, 200));
 
         childs
             .borrow_mut()
-            .push(test_create_line_component(210, 130, 110,240));
+            .push(test_create_line_component(4,210, 130, 110, 240));
+
+
+        childs
+            .borrow_mut()
+            .push(test_create_circle_component(5,210, 130,100));
+
+        childs
+            .borrow_mut()
+            .push(test_create_circle_component(6,230, 180, 50));
 
 
         Ok(FyCanvas {
@@ -286,19 +296,29 @@ impl FyCanvas {
 //-----------------------------------------------------------------
 //-----------------------------------------------------------------
 
-fn test_create_rect_component(x: i32, y: i32) -> Box<dyn Component> {
+fn test_create_rect_component(id: u32, x: i32, y: i32) -> Box<dyn Component> {
     let width = 200;
     let height = 100;
-    let line_width = 2;
     let control_width = 8;
 
+    let style = ComponentStyle {
+        font: "16px serif".to_string(),
+        line_width: 2,
+        line_color: "blue".to_string(),
+        line_focus_color: "red".to_string(),
+        control_line_width: 2,
+        control_width,
+        control_line_color: "blue".to_string(),
+        control_fill_color: "red".to_string(),
+    };
+
     let comp = RectComponent {
+        id,
+        style,
         lt_point: Point { x, y },
         width,
         height,
-        line_width,
-        line_color: "blue".to_string(),
-        focus_color: "red".to_string(),
+
         start_control: ControlPoint {
             point: Point { x, y },
             width: control_width,
@@ -310,7 +330,7 @@ fn test_create_rect_component(x: i32, y: i32) -> Box<dyn Component> {
             },
             width: control_width,
         },
-        is_move_on: false,
+
         selected: false,
         title: "抓拍区域".to_string(),
     };
@@ -318,33 +338,76 @@ fn test_create_rect_component(x: i32, y: i32) -> Box<dyn Component> {
 }
 
 
+fn test_create_line_component(id: u32, x1: i32, y1: i32, x2: i32, y2: i32) -> Box<dyn Component> {
 
-fn test_create_line_component(x1: i32, y1: i32, x2:i32,y2:i32) -> Box<dyn Component> {
-
-    let line_width = 2;
     let control_width = 8;
 
-    let comp = LineComponent {
-
-        line_width,
+    let style = ComponentStyle {
+        font: "16px serif".to_string(),
+        line_width: 2,
         line_color: "blue".to_string(),
-        focus_color: "red".to_string(),
-        start_point: ControlPoint {
-            point: Point { x:x1, y:y1 },
-            width: control_width,
-        },
-        end_point: ControlPoint {
-            point: Point { x:x2, y:y2 },
-            width: control_width,
-        },
-        is_move_on: false,
-        selected: false,
+        line_focus_color: "red".to_string(),
+        control_line_width: 2,
+        control_width: 8,
+        control_line_color: "blue".to_string(),
+        control_fill_color: "red".to_string(),
+    };
+    
+    let comp = LineComponent {
+        id,
+        style,
         title: "边界线".to_string(),
+
+        start_control: ControlPoint {
+            point: Point { x: x1, y: y1 },
+            width: control_width,
+        },
+        end_control: ControlPoint {
+            point: Point { x: x2, y: y2 },
+            width: control_width,
+        },
+
+        selected: false,
+
     };
     Box::new(comp)
 }
 
+fn test_create_circle_component(id: u32, x: i32, y: i32, radius: u32) -> Box<dyn Component> {
 
+    let control_width = 8;
+
+    let style = ComponentStyle {
+        font: "16px serif".to_string(),
+        line_width: 2,
+        line_color: "blue".to_string(),
+        line_focus_color: "red".to_string(),
+        control_line_width: 2,
+        control_width: 8,
+        control_line_color: "blue".to_string(),
+        control_fill_color: "red".to_string(),
+    };
+
+    let comp = CircleComponent {
+        id,
+        style,
+        title: "圆形".to_string(),
+
+        start_control: ControlPoint {
+            point: Point { x , y  },
+            width: control_width,
+        },
+        end_control: ControlPoint {
+            point: Point { x: x + radius as i32, y },
+            width: control_width,
+        },
+
+        radius,
+        selected: false,
+
+    };
+    Box::new(comp)
+}
 //---------------------------------------------------------
 fn window() -> web_sys::Window {
     web_sys::window().expect("no global `window` exists")
