@@ -168,12 +168,24 @@ impl FyCanvas {
         let render = FyRender::new(canvas_context, cache_canvas, cache_context);
 
         let childs = Rc::new(RefCell::new(vec![]));
+
+        // 加测试数据
         childs
             .borrow_mut()
             .push(test_create_rect_component(100, 100));
         childs
             .borrow_mut()
             .push(test_create_rect_component(150, 300));
+
+
+        childs
+            .borrow_mut()
+            .push(test_create_line_component(150, 300, 300,200));
+
+        childs
+            .borrow_mut()
+            .push(test_create_line_component(210, 130, 110,240));
+
 
         Ok(FyCanvas {
             id: id.to_string(),
@@ -277,7 +289,7 @@ impl FyCanvas {
 fn test_create_rect_component(x: i32, y: i32) -> Box<dyn Component> {
     let width = 200;
     let height = 100;
-    let line_width = 4;
+    let line_width = 2;
     let control_width = 8;
 
     let comp = RectComponent {
@@ -287,11 +299,11 @@ fn test_create_rect_component(x: i32, y: i32) -> Box<dyn Component> {
         line_width,
         line_color: "blue".to_string(),
         focus_color: "red".to_string(),
-        lt_control: ControlPoint {
+        start_control: ControlPoint {
             point: Point { x, y },
             width: control_width,
         },
-        rb_control: ControlPoint {
+        end_control: ControlPoint {
             point: Point {
                 x: x + width as i32,
                 y: y + height as i32,
@@ -304,6 +316,34 @@ fn test_create_rect_component(x: i32, y: i32) -> Box<dyn Component> {
     };
     Box::new(comp)
 }
+
+
+
+fn test_create_line_component(x1: i32, y1: i32, x2:i32,y2:i32) -> Box<dyn Component> {
+
+    let line_width = 2;
+    let control_width = 8;
+
+    let comp = LineComponent {
+
+        line_width,
+        line_color: "blue".to_string(),
+        focus_color: "red".to_string(),
+        start_point: ControlPoint {
+            point: Point { x:x1, y:y1 },
+            width: control_width,
+        },
+        end_point: ControlPoint {
+            point: Point { x:x2, y:y2 },
+            width: control_width,
+        },
+        is_move_on: false,
+        selected: false,
+        title: "边界线".to_string(),
+    };
+    Box::new(comp)
+}
+
 
 //---------------------------------------------------------
 fn window() -> web_sys::Window {
