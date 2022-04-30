@@ -163,8 +163,10 @@ impl Component for LineComponent {
         context.set_text_baseline("middle");
         context.set_text_align("cetner");
         context.set_font("16px serif");
+
         let (title_x, title_y) = self.title_position();
-        context.fill_text(&self.title, title_x, title_y).unwrap();
+        let title_offset = 16.00;
+        context.fill_text(&self.title, title_x - title_offset, title_y).unwrap();
     }
 
     fn can_move_on(&self, x: i32, y: i32) -> bool {
