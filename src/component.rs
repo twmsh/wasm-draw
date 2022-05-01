@@ -12,7 +12,9 @@ pub trait Component {
     fn paint(&self, context: &web_sys::CanvasRenderingContext2d);
     fn can_move_on(&self, x: i32, y: i32) -> bool;
     fn can_select(&self, x: i32, y: i32) -> bool;
-    fn is_select(&self) -> bool;
+
+    fn selected(&self) -> bool;
+    fn set_selected(&mut self, s: bool);
 }
 
 #[derive(Debug, Clone)]
@@ -150,8 +152,13 @@ impl Component for RectComponent {
         true
     }
 
-    fn is_select(&self) -> bool {
+
+    fn selected(&self) -> bool {
         self.selected
+    }
+
+    fn set_selected(&mut self, s: bool) {
+        self.selected = s;
     }
 }
 
@@ -231,8 +238,12 @@ impl Component for LineComponent {
         true
     }
 
-    fn is_select(&self) -> bool {
+    fn selected(&self) -> bool {
         self.selected
+    }
+
+    fn set_selected(&mut self, s: bool) {
+        self.selected = s;
     }
 }
 
@@ -317,7 +328,11 @@ impl Component for CircleComponent {
         true
     }
 
-    fn is_select(&self) -> bool {
-        todo!()
+    fn selected(&self) -> bool {
+        self.selected
+    }
+
+    fn set_selected(&mut self, s: bool) {
+        self.selected = s;
     }
 }

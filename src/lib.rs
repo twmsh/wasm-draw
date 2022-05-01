@@ -1,4 +1,5 @@
 mod component;
+mod render;
 mod utils;
 
 use std::cell::{Cell, RefCell};
@@ -7,6 +8,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
 use component::*;
+use render::*;
 use std::rc::Rc;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
@@ -65,67 +67,6 @@ impl BgImgInfo {
     }
 }
 
-struct FyRender {
-    canvas_ctx: web_sys::CanvasRenderingContext2d,
-
-    cache_canvas: web_sys::HtmlCanvasElement,
-    cache_ctx: web_sys::CanvasRenderingContext2d,
-}
-
-impl FyRender {
-    pub fn new(
-        canvas_ctx: web_sys::CanvasRenderingContext2d,
-        cache_canvas: web_sys::HtmlCanvasElement,
-        cache_ctx: web_sys::CanvasRenderingContext2d,
-    ) -> Self {
-        Self {
-            canvas_ctx,
-            cache_canvas,
-            cache_ctx,
-        }
-    }
-
-    pub fn update_bg(&self, image: &web_sys::HtmlImageElement, bg_info: &BgImgInfo) {
-        let img_width = image.width();
-        let img_height = image.height();
-
-        let width = self.cache_canvas.width() as f64;
-        let height = self.cache_canvas.height() as f64;
-
-        self.cache_ctx.clear_rect(0.0, 0.0, width, height);
-        self.cache_ctx
-            .draw_image_with_html_image_element_and_sw_and_sh_and_dx_and_dy_and_dw_and_dh(
-                image,
-                0.0,
-                0.0,
-                img_width as f64,
-                img_height as f64,
-                bg_info.dx,
-                bg_info.dy,
-                bg_info.width,
-                bg_info.height,
-            )
-            .unwrap();
-    }
-
-    pub fn update_model(&self) {}
-
-    pub fn paint(&self, childs: Rc<RefCell<ComponentVec>>) {
-        let width = self.cache_canvas.width() as f64;
-        let height = self.cache_canvas.height() as f64;
-
-        self.canvas_ctx.clear_rect(0.0, 0.0, width, height);
-
-        self.canvas_ctx
-            .draw_image_with_html_canvas_element(&self.cache_canvas, 0.0, 0.0)
-            .unwrap();
-
-        for component in childs.borrow().values() {
-            component.paint(&self.canvas_ctx);
-        }
-    }
-}
-
 #[wasm_bindgen]
 pub struct FyCanvas {
     id: String,
@@ -134,11 +75,9 @@ pub struct FyCanvas {
 
     canvas: web_sys::HtmlCanvasElement,
 
-    render: Rc<FyRender>,
+    render: Rc<RefCell<FyRender>>,
     bg_img: Rc<Cell<Option<BgImgInfo>>>,
     childs: Rc<RefCell<ComponentVec>>,
-
-    select_id: Option<u32>,
 }
 
 #[wasm_bindgen]
@@ -176,25 +115,16 @@ impl FyCanvas {
 
         // 加测试数据
         let component = test_create_rect_component(1, 100, 100);
-        childs
-            .borrow_mut()
-            .insert(component.id(), component);
+        childs.borrow_mut().insert(component.id(), component);
 
         let component = test_create_rect_component(1, 150, 300);
-        childs
-            .borrow_mut()
-            .insert(component.id(), component);
-
+        childs.borrow_mut().insert(component.id(), component);
 
         let component = test_create_line_component(3, 150, 300, 300, 200);
-        childs
-            .borrow_mut()
-            .insert(component.id(), component);
+        childs.borrow_mut().insert(component.id(), component);
 
         let component = test_create_line_component(4, 210, 130, 110, 240);
-        childs
-            .borrow_mut()
-            .insert(component.id(), component);
+        childs.borrow_mut().insert(component.id(), component);
 
         // childs
         //     .borrow_mut()
@@ -204,16 +134,14 @@ impl FyCanvas {
         //     .borrow_mut()
         //     .push(test_create_circle_component(6,230, 180, 50));
 
-
         Ok(FyCanvas {
             id: id.to_string(),
             height: canvas_height,
             width: canvas_width,
             canvas,
-            render: Rc::new(render),
+            render: Rc::new(RefCell::new(render)),
             bg_img: Rc::new(Cell::new(None)),
             childs,
-            select_id: None,
         })
     }
 
@@ -254,7 +182,7 @@ impl FyCanvas {
 
             bg.set(Some(bg_info));
             log("--> closure_image, draw bg on cache");
-            render.update_bg(&ele_image, &bg_info);
+            render.borrow().update_bg(&ele_image, &bg_info);
             FyCanvas::repaint(render.clone(), childs.clone());
         }) as Box<dyn FnMut(_)>);
         img.set_onload(Some(closure_image.as_ref().unchecked_ref()));
@@ -292,34 +220,43 @@ impl FyCanvas {
 
         Ok(())
     }
-
-
 }
 
 impl FyCanvas {
     pub fn bind_mouse_event(&self) {
+        let render = self.render.clone();
+        let childs = self.childs.clone();
+
         let closure_down = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
             log(&format!("--> mouse down, type: {:?}", event));
-            log(&format!("--> screen:({},{}), client:({},{}), offset:({},{})",
-                         event.screen_x(), event.screen_y(),
-                         event.client_x(), event.client_y(),
-                         event.offset_x(), event.offset_y(),
+            log(&format!(
+                "--> screen:({},{}), client:({},{}), offset:({},{})",
+                event.screen_x(),
+                event.screen_y(),
+                event.client_x(),
+                event.client_y(),
+                event.offset_x(),
+                event.offset_y(),
             ));
-            self.mouse_down();
+
+            // 判断策略
+            render.borrow_mut().mouse_down(childs.clone(),event.client_x(),
+                                           event.client_y(),);
+
+            // 刷新ui
+            FyCanvas::repaint(render.clone(), childs.clone());
+
         }) as Box<dyn FnMut(_)>);
-        self.canvas.add_event_listener_with_callback("mousedown", closure_down.as_ref().unchecked_ref()).unwrap();
+
+        self.canvas
+            .add_event_listener_with_callback("mousedown", closure_down.as_ref().unchecked_ref())
+            .unwrap();
         closure_down.forget();
-
     }
 
-    fn mouse_down(&self) {
-        log("FyCanvas, mouse_down");
-    }
-
-
-    fn repaint(render: Rc<FyRender>, childs: Rc<RefCell<ComponentVec>>) {
+    fn repaint(render: Rc<RefCell<FyRender>>, childs: Rc<RefCell<ComponentVec>>) {
         let closure = Closure::wrap(Box::new(move || {
-            render.paint(childs.clone());
+            render.borrow().paint(childs.clone());
         }) as Box<dyn FnMut()>);
 
         request_animation_frame(&closure);
@@ -371,7 +308,6 @@ fn test_create_rect_component(id: u32, x: i32, y: i32) -> Box<dyn Component> {
     Box::new(comp)
 }
 
-
 fn test_create_line_component(id: u32, x1: i32, y1: i32, x2: i32, y2: i32) -> Box<dyn Component> {
     let control_width = 8;
 
@@ -401,7 +337,6 @@ fn test_create_line_component(id: u32, x1: i32, y1: i32, x2: i32, y2: i32) -> Bo
         },
 
         selected: false,
-
     };
     Box::new(comp)
 }
@@ -430,13 +365,15 @@ fn test_create_circle_component(id: u32, x: i32, y: i32, radius: u32) -> Box<dyn
             width: control_width,
         },
         end_control: ControlPoint {
-            point: Point { x: x + radius as i32, y },
+            point: Point {
+                x: x + radius as i32,
+                y,
+            },
             width: control_width,
         },
 
         radius,
         selected: false,
-
     };
     Box::new(comp)
 }
