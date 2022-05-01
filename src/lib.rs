@@ -2,6 +2,7 @@ mod component;
 mod utils;
 
 use std::cell::{Cell, RefCell};
+use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
@@ -14,7 +15,7 @@ use std::rc::Rc;
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
-type ComponentVec = Vec<Box<dyn Component>>;
+type ComponentVec = HashMap<u32, Box<dyn Component>>;
 
 #[wasm_bindgen]
 extern "C" {
@@ -119,7 +120,7 @@ impl FyRender {
             .draw_image_with_html_canvas_element(&self.cache_canvas, 0.0, 0.0)
             .unwrap();
 
-        for component in childs.borrow().iter() {
+        for component in childs.borrow().values() {
             component.paint(&self.canvas_ctx);
         }
     }
@@ -131,9 +132,13 @@ pub struct FyCanvas {
     height: u32,
     width: u32,
 
+    canvas: web_sys::HtmlCanvasElement,
+
     render: Rc<FyRender>,
     bg_img: Rc<Cell<Option<BgImgInfo>>>,
     childs: Rc<RefCell<ComponentVec>>,
+
+    select_id: Option<u32>,
 }
 
 #[wasm_bindgen]
@@ -167,43 +172,48 @@ impl FyCanvas {
 
         let render = FyRender::new(canvas_context, cache_canvas, cache_context);
 
-        let childs = Rc::new(RefCell::new(vec![]));
+        let childs = Rc::new(RefCell::new(HashMap::new()));
 
         // 加测试数据
-
+        let component = test_create_rect_component(1, 100, 100);
         childs
             .borrow_mut()
-            .push(test_create_rect_component(1,100, 100));
+            .insert(component.id(), component);
+
+        let component = test_create_rect_component(1, 150, 300);
         childs
             .borrow_mut()
-            .push(test_create_rect_component(2,150, 300));
+            .insert(component.id(), component);
 
 
+        let component = test_create_line_component(3, 150, 300, 300, 200);
         childs
             .borrow_mut()
-            .push(test_create_line_component(3,150, 300, 300, 200));
+            .insert(component.id(), component);
 
+        let component = test_create_line_component(4, 210, 130, 110, 240);
         childs
             .borrow_mut()
-            .push(test_create_line_component(4,210, 130, 110, 240));
+            .insert(component.id(), component);
 
-
-        childs
-            .borrow_mut()
-            .push(test_create_circle_component(5,210, 130,100));
-
-        childs
-            .borrow_mut()
-            .push(test_create_circle_component(6,230, 180, 50));
+        // childs
+        //     .borrow_mut()
+        //     .push(test_create_circle_component(5,210, 130,100));
+        //
+        // childs
+        //     .borrow_mut()
+        //     .push(test_create_circle_component(6,230, 180, 50));
 
 
         Ok(FyCanvas {
             id: id.to_string(),
             height: canvas_height,
             width: canvas_width,
+            canvas,
             render: Rc::new(render),
             bg_img: Rc::new(Cell::new(None)),
             childs,
+            select_id: None,
         })
     }
 
@@ -278,11 +288,35 @@ impl FyCanvas {
         input.add_event_listener_with_callback("change", closure_input.as_ref().unchecked_ref())?;
         closure_input.forget();
 
+        self.bind_mouse_event();
+
         Ok(())
     }
+
+
 }
 
 impl FyCanvas {
+    pub fn bind_mouse_event(&self) {
+        let closure_down = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
+            log(&format!("--> mouse down, type: {:?}", event));
+            log(&format!("--> screen:({},{}), client:({},{}), offset:({},{})",
+                         event.screen_x(), event.screen_y(),
+                         event.client_x(), event.client_y(),
+                         event.offset_x(), event.offset_y(),
+            ));
+            self.mouse_down();
+        }) as Box<dyn FnMut(_)>);
+        self.canvas.add_event_listener_with_callback("mousedown", closure_down.as_ref().unchecked_ref()).unwrap();
+        closure_down.forget();
+
+    }
+
+    fn mouse_down(&self) {
+        log("FyCanvas, mouse_down");
+    }
+
+
     fn repaint(render: Rc<FyRender>, childs: Rc<RefCell<ComponentVec>>) {
         let closure = Closure::wrap(Box::new(move || {
             render.paint(childs.clone());
@@ -339,7 +373,6 @@ fn test_create_rect_component(id: u32, x: i32, y: i32) -> Box<dyn Component> {
 
 
 fn test_create_line_component(id: u32, x1: i32, y1: i32, x2: i32, y2: i32) -> Box<dyn Component> {
-
     let control_width = 8;
 
     let style = ComponentStyle {
@@ -352,7 +385,7 @@ fn test_create_line_component(id: u32, x1: i32, y1: i32, x2: i32, y2: i32) -> Bo
         control_line_color: "blue".to_string(),
         control_fill_color: "red".to_string(),
     };
-    
+
     let comp = LineComponent {
         id,
         style,
@@ -374,7 +407,6 @@ fn test_create_line_component(id: u32, x1: i32, y1: i32, x2: i32, y2: i32) -> Bo
 }
 
 fn test_create_circle_component(id: u32, x: i32, y: i32, radius: u32) -> Box<dyn Component> {
-
     let control_width = 8;
 
     let style = ComponentStyle {
@@ -394,7 +426,7 @@ fn test_create_circle_component(id: u32, x: i32, y: i32, radius: u32) -> Box<dyn
         title: "圆形".to_string(),
 
         start_control: ControlPoint {
-            point: Point { x , y  },
+            point: Point { x, y },
             width: control_width,
         },
         end_control: ControlPoint {
@@ -408,6 +440,7 @@ fn test_create_circle_component(id: u32, x: i32, y: i32, radius: u32) -> Box<dyn
     };
     Box::new(comp)
 }
+
 //---------------------------------------------------------
 fn window() -> web_sys::Window {
     web_sys::window().expect("no global `window` exists")

@@ -219,8 +219,8 @@ impl Component for LineComponent {
 
         // 画 title
         let (title_x, title_y) = self.title_position();
-        let title_offset = 16.00;
-        context.fill_text(&self.title, title_x - title_offset, title_y + title_offset).unwrap();
+        let title_offset = 4.00;
+        context.fill_text(&self.title, title_x + title_offset, title_y + title_offset).unwrap();
     }
 
     fn can_move_on(&self, x: i32, y: i32) -> bool {
