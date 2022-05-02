@@ -1,6 +1,6 @@
-use std::borrow::BorrowMut;
+
 use std::cell::RefCell;
-use std::ops::{Deref, DerefMut};
+use std::ops::{Deref};
 use std::rc::Rc;
 use crate::{BgImgInfo, ComponentVec, log};
 
@@ -81,10 +81,10 @@ impl FyRender {
             if self.select_id.is_none() && component.try_select(x, y) {
                 self.select_id = Some(*id);
                 self.mouse_pressed = true;
-                component.set_selected(true);
+                component.set_select(true);
                 log(&format!("do select {}",*id));
             } else {
-                component.set_selected(false);
+                component.set_select(false);
             }
         }
     }
@@ -94,19 +94,20 @@ impl FyRender {
         if self.mouse_pressed  {
             if let Some(id) = self.select_id {
                 if let Some(component) = childs.deref().borrow_mut().get_mut(&id){
+                    log(&format!("move id: {}",component.id()));
                     component.update_mouse(x,y);
                 }
             }
         }
     }
 
-    pub fn mouse_up(&mut self, childs: Rc<RefCell<ComponentVec>>, x: i32, y: i32) {
+    pub fn mouse_up(&mut self, childs: Rc<RefCell<ComponentVec>>, _x: i32, _y: i32) {
         self.mouse_pressed = false;
         self.select_id = None;
 
         let mut component_list = childs.deref().borrow_mut();
         for (_id, component) in component_list.iter_mut() {
-            component.set_selected(false);
+            component.set_select(false);
         }
 
     }

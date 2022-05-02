@@ -117,11 +117,11 @@ impl FyCanvas {
         let component = test_create_rect_component(1, 100, 100);
         childs.borrow_mut().insert(component.id(), component);
 
-        let component = test_create_rect_component(1, 150, 300);
-        childs.borrow_mut().insert(component.id(), component);
+        // let component = test_create_rect_component(1, 150, 300);
+        // childs.borrow_mut().insert(component.id(), component);
 
-        let component = test_create_line_component(3, 150, 300, 300, 200);
-        childs.borrow_mut().insert(component.id(), component);
+        // let component = test_create_line_component(3, 150, 300, 300, 200);
+        // childs.borrow_mut().insert(component.id(), component);
 
         let component = test_create_line_component(4, 210, 130, 110, 240);
         childs.borrow_mut().insert(component.id(), component);
@@ -246,8 +246,8 @@ impl FyCanvas {
             ));
 
             //
-            render.borrow_mut().mouse_down(childs.clone(),event.client_x(),
-                                           event.client_y(),);
+            render.borrow_mut().mouse_down(childs.clone(),event.offset_x(),
+                                           event.offset_y(),);
 
             // 刷新ui
             FyCanvas::repaint(render.clone(), childs.clone());
@@ -262,7 +262,7 @@ impl FyCanvas {
 
         // 鼠标移动
         let closure_move = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
-            log(&format!("--> mouse move, button:{}, type: {:?}", event.buttons(),event));
+            // log(&format!("--> mouse move, button:{}, type: {:?}", event.buttons(),event));
             log(&format!(
                 "--> screen:({},{}), client:({},{}), offset:({},{})",
                 event.screen_x(),
@@ -275,8 +275,8 @@ impl FyCanvas {
 
             if event.buttons() ==1 {
                 //
-                render2.borrow_mut().mouse_move(childs2.clone(),event.client_x(),
-                                                event.client_y(),);
+                render2.borrow_mut().mouse_move(childs2.clone(),event.offset_x(),
+                                                event.offset_y(),);
 
                 // 刷新ui
                 FyCanvas::repaint(render2.clone(), childs2.clone());
@@ -305,8 +305,8 @@ impl FyCanvas {
             ));
 
             //
-            render3.borrow_mut().mouse_up(childs3.clone(),event.client_x(),
-                                           event.client_y(),);
+            render3.borrow_mut().mouse_up(childs3.clone(),event.offset_x(),
+                                           event.offset_y(),);
 
             // 刷新ui
             FyCanvas::repaint(render3.clone(), childs3.clone());
@@ -351,13 +351,14 @@ fn test_create_rect_component(id: u32, x: i32, y: i32) -> Box<dyn Component> {
     let comp = RectComponent {
         id,
         style,
-        lt_point: Point { x, y },
+
         width,
         height,
 
         start_control: ControlPoint {
             point: Point { x, y },
             width: control_width,
+            selected: false
         },
         end_control: ControlPoint {
             point: Point {
@@ -365,6 +366,7 @@ fn test_create_rect_component(id: u32, x: i32, y: i32) -> Box<dyn Component> {
                 y: y + height as i32,
             },
             width: control_width,
+            selected: false
         },
 
         selected: false,
@@ -395,10 +397,12 @@ fn test_create_line_component(id: u32, x1: i32, y1: i32, x2: i32, y2: i32) -> Bo
         start_control: ControlPoint {
             point: Point { x: x1, y: y1 },
             width: control_width,
+            selected: false
         },
         end_control: ControlPoint {
             point: Point { x: x2, y: y2 },
             width: control_width,
+            selected: false
         },
 
         selected: false,
@@ -428,6 +432,7 @@ fn test_create_circle_component(id: u32, x: i32, y: i32, radius: u32) -> Box<dyn
         start_control: ControlPoint {
             point: Point { x, y },
             width: control_width,
+            selected: false
         },
         end_control: ControlPoint {
             point: Point {
@@ -435,6 +440,7 @@ fn test_create_circle_component(id: u32, x: i32, y: i32, radius: u32) -> Box<dyn
                 y,
             },
             width: control_width,
+            selected: false
         },
 
         radius,

@@ -1,4 +1,5 @@
 use wasm_bindgen::JsValue;
+use crate::log;
 use web_sys::CanvasRenderingContext2d;
 
 
@@ -12,10 +13,10 @@ pub trait Component {
     fn paint(&self, context: &web_sys::CanvasRenderingContext2d);
 
 
-    fn try_select(&self, x: i32, y: i32) -> bool;
+    fn try_select(&mut self, x: i32, y: i32) -> bool;
 
     fn selected(&self) -> bool;
-    fn set_selected(&mut self, s: bool);
+    fn set_select(&mut self, s:bool);
 }
 
 #[derive(Debug, Clone)]
@@ -43,9 +44,32 @@ pub struct Point {
 pub struct ControlPoint {
     pub point: Point,
     pub width: u32,
+    pub selected: bool,
 }
 
 impl ControlPoint {
+    pub fn new(x: i32, y: i32, width: u32) -> Self {
+        Self {
+            point: Point { x, y },
+            width,
+            selected: false,
+        }
+    }
+
+    pub fn can_select(&self, x: i32, y: i32) -> bool {
+        let left = self.point.x - (self.width / 2) as i32;
+        let right = self.point.x + (self.width / 2) as i32;
+        let top = self.point.y - (self.width / 2) as i32;
+        let bottom = self.point.y + (self.width / 2) as i32;
+
+        let ret = x >= left && x <= right && y >= top && y <= bottom;
+        log(&format!("{} {} {} {}, {} {}, {}",left,right,top,bottom,x,y,ret));
+
+        ret
+
+    }
+
+
     fn paint(&self, context: &CanvasRenderingContext2d, style: &ComponentStyle) {
         let left = self.point.x - (self.width / 2) as i32;
         let top = self.point.y - (self.width / 2) as i32;
@@ -72,7 +96,6 @@ pub struct RectComponent {
     pub id: u32,
     pub style: ComponentStyle,
 
-    pub lt_point: Point,
     pub width: u32,
     pub height: u32,
 
@@ -117,7 +140,15 @@ impl Component for RectComponent {
         self.style.clone()
     }
 
-    fn update_mouse(&mut self, x: i32, y: i32) {}
+    fn update_mouse(&mut self, x: i32, y: i32) {
+        if self.start_control.selected {
+            self.start_control.point.x = x;
+            self.start_control.point.y = y;
+        } else if self.end_control.selected {
+            self.end_control.point.x = x;
+            self.end_control.point.y = y;
+        }
+    }
 
     fn paint(&self, context: &CanvasRenderingContext2d) {
 
@@ -146,9 +177,18 @@ impl Component for RectComponent {
     }
 
 
+    fn try_select(&mut self, x: i32, y: i32) -> bool {
+        if self.start_control.can_select(x,y) {
+            self.start_control.selected = true;
+            return true;
+        }
 
-    fn try_select(&self, x: i32, y: i32) -> bool {
-        true
+        if self.end_control.can_select(x,y) {
+            self.end_control.selected = true;
+            return true;
+        }
+
+        false
     }
 
 
@@ -156,8 +196,13 @@ impl Component for RectComponent {
         self.selected
     }
 
-    fn set_selected(&mut self, s: bool) {
+    fn set_select(&mut self,s: bool) {
         self.selected = s;
+        if !self.selected {
+            self.start_control.selected = false;
+            self.end_control.selected = false;
+        }
+
     }
 }
 
@@ -196,7 +241,15 @@ impl Component for LineComponent {
         self.style.clone()
     }
 
-    fn update_mouse(&mut self, x: i32, y: i32) {}
+    fn update_mouse(&mut self, x: i32, y: i32) {
+        if self.start_control.selected {
+            self.start_control.point.x = x;
+            self.start_control.point.y = y;
+        } else if self.end_control.selected {
+            self.end_control.point.x = x;
+            self.end_control.point.y = y;
+        }
+    }
 
     fn paint(&self, context: &CanvasRenderingContext2d) {
 
@@ -230,17 +283,31 @@ impl Component for LineComponent {
     }
 
 
+    fn try_select(&mut self, x: i32, y: i32) -> bool {
+        if self.start_control.can_select(x,y) {
+            self.start_control.selected = true;
+            return true;
+        }
 
-    fn try_select(&self, x: i32, y: i32) -> bool {
-        true
+        if self.end_control.can_select(x,y) {
+            self.end_control.selected = true;
+            return true;
+        }
+
+        false
     }
 
     fn selected(&self) -> bool {
         self.selected
     }
 
-    fn set_selected(&mut self, s: bool) {
+    fn set_select(&mut self,s: bool) {
         self.selected = s;
+        if !self.selected {
+            self.start_control.selected = false;
+            self.end_control.selected = false;
+        }
+
     }
 }
 
@@ -318,8 +385,7 @@ impl Component for CircleComponent {
     }
 
 
-
-    fn try_select(&self, x: i32, y: i32) -> bool {
+    fn try_select(&mut self, x: i32, y: i32) -> bool {
         true
     }
 
@@ -327,7 +393,12 @@ impl Component for CircleComponent {
         self.selected
     }
 
-    fn set_selected(&mut self, s: bool) {
+    fn set_select(&mut self,s: bool) {
         self.selected = s;
+        if !self.selected {
+            self.start_control.selected = false;
+            self.end_control.selected = false;
+        }
+
     }
 }
