@@ -262,7 +262,7 @@ impl FyCanvas {
 
         // 鼠标移动
         let closure_move = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
-            log(&format!("--> mouse move, type: {:?}", event));
+            log(&format!("--> mouse move, button:{}, type: {:?}", event.buttons(),event));
             log(&format!(
                 "--> screen:({},{}), client:({},{}), offset:({},{})",
                 event.screen_x(),
@@ -273,12 +273,16 @@ impl FyCanvas {
                 event.offset_y(),
             ));
 
-            //
-            render2.borrow_mut().mouse_move(childs2.clone(),event.client_x(),
-                                           event.client_y(),);
+            if event.buttons() ==1 {
+                //
+                render2.borrow_mut().mouse_move(childs2.clone(),event.client_x(),
+                                                event.client_y(),);
 
-            // 刷新ui
-            FyCanvas::repaint(render2.clone(), childs2.clone());
+                // 刷新ui
+                FyCanvas::repaint(render2.clone(), childs2.clone());
+                log("mouse move, repaint");
+            }
+
 
         }) as Box<dyn FnMut(_)>);
 

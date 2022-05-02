@@ -78,7 +78,7 @@ impl FyRender {
         // 判断 是点中控制点，还是移动区域
         let mut component_list = childs.deref().borrow_mut();
         for (id, component) in component_list.iter_mut() {
-            if component.try_select(x, y) {
+            if self.select_id.is_none() && component.try_select(x, y) {
                 self.select_id = Some(*id);
                 self.mouse_pressed = true;
                 component.set_selected(true);
