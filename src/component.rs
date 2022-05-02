@@ -7,11 +7,12 @@ pub trait Component {
     fn type_id(&self) -> u32;
     fn style(&self) -> ComponentStyle;
 
-    fn update_mouse(&self, x: i32, y: i32);
+    fn update_mouse(&mut self, x: i32, y: i32);
 
     fn paint(&self, context: &web_sys::CanvasRenderingContext2d);
-    fn can_move_on(&self, x: i32, y: i32) -> bool;
-    fn can_select(&self, x: i32, y: i32) -> bool;
+
+
+    fn try_select(&self, x: i32, y: i32) -> bool;
 
     fn selected(&self) -> bool;
     fn set_selected(&mut self, s: bool);
@@ -116,7 +117,7 @@ impl Component for RectComponent {
         self.style.clone()
     }
 
-    fn update_mouse(&self, x: i32, y: i32) {}
+    fn update_mouse(&mut self, x: i32, y: i32) {}
 
     fn paint(&self, context: &CanvasRenderingContext2d) {
 
@@ -144,11 +145,9 @@ impl Component for RectComponent {
         context.fill_text(&self.title, title_x - title_offset, title_y + title_offset).unwrap();
     }
 
-    fn can_move_on(&self, x: i32, y: i32) -> bool {
-        true
-    }
 
-    fn can_select(&self, x: i32, y: i32) -> bool {
+
+    fn try_select(&self, x: i32, y: i32) -> bool {
         true
     }
 
@@ -197,7 +196,7 @@ impl Component for LineComponent {
         self.style.clone()
     }
 
-    fn update_mouse(&self, x: i32, y: i32) {}
+    fn update_mouse(&mut self, x: i32, y: i32) {}
 
     fn paint(&self, context: &CanvasRenderingContext2d) {
 
@@ -230,11 +229,9 @@ impl Component for LineComponent {
         context.fill_text(&self.title, title_x + title_offset, title_y + title_offset).unwrap();
     }
 
-    fn can_move_on(&self, x: i32, y: i32) -> bool {
-        true
-    }
 
-    fn can_select(&self, x: i32, y: i32) -> bool {
+
+    fn try_select(&self, x: i32, y: i32) -> bool {
         true
     }
 
@@ -284,7 +281,7 @@ impl Component for CircleComponent {
         self.style.clone()
     }
 
-    fn update_mouse(&self, x: i32, y: i32) {}
+    fn update_mouse(&mut self, x: i32, y: i32) {}
 
     fn paint(&self, context: &CanvasRenderingContext2d) {
 
@@ -320,11 +317,9 @@ impl Component for CircleComponent {
         context.fill_text(&self.title, title_x - title_offset, title_y + title_offset).unwrap();
     }
 
-    fn can_move_on(&self, x: i32, y: i32) -> bool {
-        true
-    }
 
-    fn can_select(&self, x: i32, y: i32) -> bool {
+
+    fn try_select(&self, x: i32, y: i32) -> bool {
         true
     }
 

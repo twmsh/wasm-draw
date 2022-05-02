@@ -225,8 +225,14 @@ impl FyCanvas {
 impl FyCanvas {
     pub fn bind_mouse_event(&self) {
         let render = self.render.clone();
-        let childs = self.childs.clone();
+        let render2 = self.render.clone();
+        let render3 = self.render.clone();
 
+        let childs = self.childs.clone();
+        let childs2 = self.childs.clone();
+        let childs3 = self.childs.clone();
+
+        // 鼠标down
         let closure_down = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
             log(&format!("--> mouse down, type: {:?}", event));
             log(&format!(
@@ -239,7 +245,7 @@ impl FyCanvas {
                 event.offset_y(),
             ));
 
-            // 判断策略
+            //
             render.borrow_mut().mouse_down(childs.clone(),event.client_x(),
                                            event.client_y(),);
 
@@ -252,6 +258,61 @@ impl FyCanvas {
             .add_event_listener_with_callback("mousedown", closure_down.as_ref().unchecked_ref())
             .unwrap();
         closure_down.forget();
+
+
+        // 鼠标移动
+        let closure_move = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
+            log(&format!("--> mouse move, type: {:?}", event));
+            log(&format!(
+                "--> screen:({},{}), client:({},{}), offset:({},{})",
+                event.screen_x(),
+                event.screen_y(),
+                event.client_x(),
+                event.client_y(),
+                event.offset_x(),
+                event.offset_y(),
+            ));
+
+            //
+            render2.borrow_mut().mouse_move(childs2.clone(),event.client_x(),
+                                           event.client_y(),);
+
+            // 刷新ui
+            FyCanvas::repaint(render2.clone(), childs2.clone());
+
+        }) as Box<dyn FnMut(_)>);
+
+        self.canvas
+            .add_event_listener_with_callback("mousemove", closure_move.as_ref().unchecked_ref())
+            .unwrap();
+        closure_move.forget();
+
+        // 鼠标up
+        let closure_up = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
+            log(&format!("--> mouse up, type: {:?}", event));
+            log(&format!(
+                "--> screen:({},{}), client:({},{}), offset:({},{})",
+                event.screen_x(),
+                event.screen_y(),
+                event.client_x(),
+                event.client_y(),
+                event.offset_x(),
+                event.offset_y(),
+            ));
+
+            //
+            render3.borrow_mut().mouse_up(childs3.clone(),event.client_x(),
+                                           event.client_y(),);
+
+            // 刷新ui
+            FyCanvas::repaint(render3.clone(), childs3.clone());
+
+        }) as Box<dyn FnMut(_)>);
+
+        self.canvas
+            .add_event_listener_with_callback("mouseup", closure_up.as_ref().unchecked_ref())
+            .unwrap();
+        closure_up.forget();
     }
 
     fn repaint(render: Rc<RefCell<FyRender>>, childs: Rc<RefCell<ComponentVec>>) {
