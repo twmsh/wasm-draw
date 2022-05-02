@@ -111,7 +111,7 @@ pub struct RectComponent {
 impl RectComponent {
     fn lt_point(&self) -> (f64, f64) {
         let start = self.start_control.point;
-        let end = self.start_control.point;
+        let end = self.end_control.point;
         match (start.x >= end.x, start.y >= end.y) {
             (false, false) => (start.x as f64, start.y as f64),
             (true, true) => (end.x as f64, end.y as f64),
@@ -124,6 +124,12 @@ impl RectComponent {
         let (x, y) = self.lt_point();
 
         (x + (self.width / 2) as f64, y)
+    }
+
+    fn re_calculate(&mut self) {
+        self.width = (self.end_control.point.x - self.start_control.point.x).abs() as u32;
+        self.height = (self.end_control.point.y - self.start_control.point.y).abs() as u32;
+
     }
 }
 
@@ -148,12 +154,19 @@ impl Component for RectComponent {
             self.end_control.point.x = x;
             self.end_control.point.y = y;
         }
+        self.re_calculate();
     }
 
     fn paint(&self, context: &CanvasRenderingContext2d) {
 
+        let line_color = if self.selected {
+            self.style.line_focus_color.as_str()
+        } else{
+            self.style.line_color.as_str()
+        };
+
         // 设置线颜色和宽带
-        context.set_stroke_style(&JsValue::from_str(self.style.line_color.as_str()));
+        context.set_stroke_style(&JsValue::from_str(line_color));
         context.set_line_width(self.style.line_width as f64);
 
         // 画矩形框
@@ -253,8 +266,14 @@ impl Component for LineComponent {
 
     fn paint(&self, context: &CanvasRenderingContext2d) {
 
+        let line_color = if self.selected {
+            self.style.line_focus_color.as_str()
+        } else{
+            self.style.line_color.as_str()
+        };
+
         // 设置线颜色和宽带
-        context.set_stroke_style(&JsValue::from_str(self.style.line_color.as_str()));
+        context.set_stroke_style(&JsValue::from_str(line_color));
         context.set_line_width(self.style.line_width as f64);
 
         // 画直线
