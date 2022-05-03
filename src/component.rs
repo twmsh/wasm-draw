@@ -10,7 +10,7 @@ pub trait Component {
 
     fn update_mouse(&mut self, x: i32, y: i32);
 
-    fn paint(&self, context: &web_sys::CanvasRenderingContext2d);
+    fn paint(&self, context: &CanvasRenderingContext2d);
 
 
     fn try_select(&mut self, x: i32, y: i32) -> bool;
@@ -387,8 +387,14 @@ impl Component for CircleComponent {
 
     fn paint(&self, context: &CanvasRenderingContext2d) {
 
+        let line_color = if self.selected {
+            self.style.line_focus_color.as_str()
+        } else{
+            self.style.line_color.as_str()
+        };
+
         // 设置线颜色和宽带
-        context.set_stroke_style(&JsValue::from_str(self.style.line_color.as_str()));
+        context.set_stroke_style(&JsValue::from_str(line_color));
         context.set_line_width(self.style.line_width as f64);
 
         // 画直线
@@ -399,7 +405,7 @@ impl Component for CircleComponent {
             self.start_control.point.y as f64,
             self.radius as f64,
             0.0,
-            2 as f64 * std::f64::consts::PI,
+            2_f64 * std::f64::consts::PI,
         ).unwrap();
         context.stroke();
 

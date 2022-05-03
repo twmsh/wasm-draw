@@ -74,7 +74,7 @@ impl FyRender {
 
             // 去掉moveleave 之前的状态
             let mut component_list = childs.deref().borrow_mut();
-            for (id, component) in component_list.iter_mut() {
+            for (_id, component) in component_list.iter_mut() {
                 component.set_select(false);
             }
         }

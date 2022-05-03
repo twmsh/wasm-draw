@@ -53,8 +53,8 @@ impl BgImgInfo {
             c_height / img_height
         };
 
-        let dx = (c_width - img_width * scale) / 2 as f64;
-        let dy = (c_height - img_height * scale) / 2 as f64;
+        let dx = (c_width - img_width * scale) / 2_f64;
+        let dy = (c_height - img_height * scale) / 2_f64;
         BgImgInfo {
             dx,
             dy,
@@ -87,7 +87,7 @@ impl FyCanvas {
 
         let canvas = document
             .get_element_by_id(id)
-            .ok_or(JsError::new("body not find"))?
+            .ok_or_else(||JsError::new("body not find"))?
             .dyn_into::<web_sys::HtmlCanvasElement>()?;
 
         let canvas_height = canvas.height();
@@ -95,7 +95,7 @@ impl FyCanvas {
 
         let canvas_context = canvas
             .get_context("2d")?
-            .ok_or(JsError::new("document not find"))?
+            .ok_or_else(||JsError::new("document not find"))?
             .dyn_into::<web_sys::CanvasRenderingContext2d>()?;
 
         let cache_canvas = document
@@ -106,7 +106,7 @@ impl FyCanvas {
 
         let cache_context = cache_canvas
             .get_context("2d")?
-            .ok_or(JsError::new("document not find"))?
+            .ok_or_else(||JsError::new("document not find"))?
             .dyn_into::<web_sys::CanvasRenderingContext2d>()?;
 
         let render = FyRender::new(canvas_context, cache_canvas, cache_context);
@@ -149,7 +149,7 @@ impl FyCanvas {
         let document = document();
         let input = document
             .get_element_by_id(input_id)
-            .ok_or(JsError::new("input not find"))?
+            .ok_or_else(||JsError::new("input not find"))?
             .dyn_into::<web_sys::HtmlInputElement>()?;
 
         let file_reader = web_sys::FileReader::new()?;
