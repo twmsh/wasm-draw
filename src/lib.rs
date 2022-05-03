@@ -126,10 +126,10 @@ impl FyCanvas {
         let component = test_create_line_component(4, 210, 130, 110, 240);
         childs.borrow_mut().insert(component.id(), component);
 
-        // childs
-        //     .borrow_mut()
-        //     .push(test_create_circle_component(5,210, 130,100));
-        //
+        let component = test_create_circle_component(5,210, 130,100);
+        childs.borrow_mut().insert(component.id(), component);
+
+
         // childs
         //     .borrow_mut()
         //     .push(test_create_circle_component(6,230, 180, 50));
@@ -263,15 +263,15 @@ impl FyCanvas {
         // 鼠标移动
         let closure_move = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
             // log(&format!("--> mouse move, button:{}, type: {:?}", event.buttons(),event));
-            log(&format!(
-                "--> screen:({},{}), client:({},{}), offset:({},{})",
-                event.screen_x(),
-                event.screen_y(),
-                event.client_x(),
-                event.client_y(),
-                event.offset_x(),
-                event.offset_y(),
-            ));
+            // log(&format!(
+            //     "--> screen:({},{}), client:({},{}), offset:({},{})",
+            //     event.screen_x(),
+            //     event.screen_y(),
+            //     event.client_x(),
+            //     event.client_y(),
+            //     event.offset_x(),
+            //     event.offset_y(),
+            // ));
 
             if event.buttons() ==1 {
                 //

@@ -1,4 +1,3 @@
-
 use std::cell::RefCell;
 use std::ops::{Deref};
 use std::rc::Rc;
@@ -72,6 +71,12 @@ impl FyRender {
             // mouse down 之前， pressed应该是false状态
             self.mouse_pressed = false;
             self.select_id = None;
+
+            // 去掉moveleave 之前的状态
+            let mut component_list = childs.deref().borrow_mut();
+            for (id, component) in component_list.iter_mut() {
+                component.set_select(false);
+            }
         }
 
         // 寻找选中的控件，设置成focus，其他控件失去focus
@@ -82,7 +87,7 @@ impl FyRender {
                 self.select_id = Some(*id);
                 self.mouse_pressed = true;
                 component.set_select(true);
-                log(&format!("do select {}",*id));
+                log(&format!("do select {}", *id));
             } else {
                 component.set_select(false);
             }
@@ -91,11 +96,11 @@ impl FyRender {
 
     pub fn mouse_move(&mut self, childs: Rc<RefCell<ComponentVec>>, x: i32, y: i32) {
         // 选中控件的控制点，并拖拽
-        if self.mouse_pressed  {
+        if self.mouse_pressed {
             if let Some(id) = self.select_id {
-                if let Some(component) = childs.deref().borrow_mut().get_mut(&id){
-                    log(&format!("move id: {}",component.id()));
-                    component.update_mouse(x,y);
+                if let Some(component) = childs.deref().borrow_mut().get_mut(&id) {
+                    log(&format!("move id: {}", component.id()));
+                    component.update_mouse(x, y);
                 }
             }
         }
@@ -109,6 +114,5 @@ impl FyRender {
         for (_id, component) in component_list.iter_mut() {
             component.set_select(false);
         }
-
     }
 }

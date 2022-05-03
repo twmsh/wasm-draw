@@ -352,6 +352,12 @@ impl CircleComponent {
         let y = self.start_control.point.y + (self.end_control.point.y - self.start_control.point.y) / 2;
         (x as f64, y as f64)
     }
+
+    pub fn re_calculate(&mut self) {
+        let dist  = (self.start_control.point.x - self.end_control.point.x).pow(2)
+            + (self.start_control.point.y - self.end_control.point.y).pow(2);
+        self.radius = (dist as f64).sqrt() as u32;
+    }
 }
 
 impl Component for CircleComponent {
@@ -367,7 +373,17 @@ impl Component for CircleComponent {
         self.style.clone()
     }
 
-    fn update_mouse(&mut self, x: i32, y: i32) {}
+    fn update_mouse(&mut self, x: i32, y: i32) {
+        if self.start_control.selected {
+            self.start_control.point.x = x;
+            self.start_control.point.y = y;
+        } else if self.end_control.selected {
+            self.end_control.point.x = x;
+            self.end_control.point.y = y;
+        }
+        self.re_calculate();
+
+    }
 
     fn paint(&self, context: &CanvasRenderingContext2d) {
 
@@ -405,7 +421,17 @@ impl Component for CircleComponent {
 
 
     fn try_select(&mut self, x: i32, y: i32) -> bool {
-        true
+        if self.start_control.can_select(x,y) {
+            self.start_control.selected = true;
+            return true;
+        }
+
+        if self.end_control.can_select(x,y) {
+            self.end_control.selected = true;
+            return true;
+        }
+
+        false
     }
 
     fn selected(&self) -> bool {

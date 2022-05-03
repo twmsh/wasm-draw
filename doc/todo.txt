@@ -24,3 +24,6 @@ FyCanvas {
 1) 优先级队列
 2) 控件trait object
 3) 更改内部属性
+
+
+修改鼠标指针
